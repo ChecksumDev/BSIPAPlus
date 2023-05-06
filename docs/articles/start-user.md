@@ -7,7 +7,7 @@ uid: articles.start.user
 > [!NOTE]
 > This guide assumes that you are starting completely fresh.
 
- 1. Grab a release from the GitHub [Releases page](https://github.com/beat-saber-modding-group/BeatSaber-IPA-Reloaded/releases).
+ 1. Grab a release from the GitHub [Releases page](https://github.com/beat-saber-modding-group/BSIPAPlus/releases).
     Make sure to download one of the `BSIPA-*.zip`s, as `ModList.zip` contains the Beat Saber mod for showing your mods in-game, not the loader itself.
 
     > [!NOTE]

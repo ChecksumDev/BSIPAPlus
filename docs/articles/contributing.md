@@ -14,7 +14,7 @@ uid: articles.contributing
 
 ## Building
 
-1. Clone with `git clone https://github.com/beat-saber-modding-group/BeatSaber-IPA-Reloaded.git --recursive`
+1. Clone with `git clone https://github.com/beat-saber-modding-group/BSIPAPlus.git --recursive`
 2. Create a file, `bsinstalldir.txt` in the solution root. Do NOT create this in Visual Studio; VS adds a BOM at the begginning of the file that the tools used cannot read.
    It should contain the path to your Beat Saber installation, using forward slashes with a trailing slash. e.g.
 

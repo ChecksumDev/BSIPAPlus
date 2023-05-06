@@ -5,8 +5,7 @@ uid: home
 
 # ![BSIPA](images/banner_dark.svg)
 
-[![Build](https://github.com/bsmg/BeatSaber-IPA-Reloaded/workflows/Build/badge.svg)](https://ci.appveyor.com/project/nike4613/beatsaber-ipa-reloaded-9smsb)
-
+[![Build](https://github.com/ChecksumDev/BSIPAPlus/workflows/Build/badge.svg)](https://github.com/ChecksumDev/BSIPAPlus/actions?query=workflow%3ABuild)
 BSIPA - The Unity mod injector for the new age (pending confirmation).
 
 Assuming, that is, that Unity 2017 is "new age".
