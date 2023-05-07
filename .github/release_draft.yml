@@ -16,4 +16,4 @@ version-resolver:
   default: patch
 template: |
     [*All Changes*](https://github.com/ChecksumDev/BSIPAPlus/compare/$PREVIOUS_TAG...$RESOLVED_VERSION)
-    [*Documentation Permalink*](https://bsmg.github.io/BSIPAPlus/tags/$RESOLVED_VERSION/index.html)
+    [*Documentation Permalink*](https://checksumdev.github.io/BSIPAPlus/tags/$RESOLVED_VERSION/index.html)
