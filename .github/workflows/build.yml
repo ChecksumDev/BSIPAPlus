@@ -20,17 +20,17 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        platform: [ "x86", "x64" ]
+        platform: ["x86", "x64"]
     env:
       Configuration: Release
       Platform: ${{ matrix.platform }}
     steps:
       - name: Checkout branch
         uses: actions/checkout@v2
-
+        
       - name: Checkout submodules
         run: git submodule update --init --recursive
-
+        
       - name: Cache dependencies
         uses: actions/cache@v2
         with:
@@ -40,31 +40,31 @@ jobs:
           key: ${{ runner.os }}-dotnet-${{ env.Configuration }}-${{ env.Platform }}
           restore-keys: |
             ${{ runner.os }}-dotnet-${{ env.Configuration }}-${{ env.Platform }}
-
+            
       - name: Locate MSBuild
         uses: microsoft/setup-msbuild@v1.0.2
-
+        
       - name: Setup .NET Core
         uses: actions/setup-dotnet@v1
         with:
           # As usual, obtained from: https://dotnetcli.blob.core.windows.net/dotnet/release-metadata/5.0/releases.json
           dotnet-version: "6.0.100" # since we now use this
-
+          
       - name: Log in to package source
         shell: pwsh
         run: |
           dotnet nuget add source --username ${{ github.actor }} --password ${{ secrets.GITHUB_TOKEN }} `
           --store-password-in-clear-text --name github "https://nuget.pkg.github.com/Atlas-Rhythm/index.json"
+          
+#      - name: Clear Nuget Cache (for testing)
+#        run: dotnet nuget locals all --clear
       
-      #      - name: Clear Nuget Cache (for testing)
-      #        run: dotnet nuget locals all --clear
-
       - name: Restore
         run: msbuild -t:Restore -m
-
+        
       - name: Build
         run: msbuild -t:Build -m
-
+        
       - name: Upload net472
         uses: actions/upload-artifact@v2
         with:

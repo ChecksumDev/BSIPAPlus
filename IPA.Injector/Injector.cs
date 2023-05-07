@@ -13,11 +13,8 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Threading.Tasks;
+using UnityEngine;
 using static IPA.Logging.Logger;
-using Application = UnityEngine.Application;
-using GameObject = UnityEngine.GameObject;
-using LibLoader = IPA.Loader.LibLoader;
-using LogType = UnityEngine.LogType;
 using MethodAttributes = Mono.Cecil.MethodAttributes;
 #if NET3
 using Net3_Proxy;
@@ -29,34 +26,27 @@ using Directory = Net3_Proxy.Directory;
 namespace IPA.Injector
 {
     /// <summary>
-    ///     The entry point type for BSIPA's Doorstop injector.
+    /// The entry point type for BSIPA's Doorstop injector.
     /// </summary>
     // ReSharper disable once UnusedMember.Global
     internal static class Injector
     {
         private static Task? pluginAsyncLoadTask;
         private static Task? permissionFixTask;
-
-        private static bool bootstrapped;
-
-        private static bool loadingDone;
         //private static string otherNewtonsoftJson = null;
 
         // ReSharper disable once UnusedParameter.Global
         internal static void Main(string[] args)
-        {
-            // entry point for doorstop
-            // At this point, literally nothing but mscorlib is loaded,
-            // and since this class doesn't have any static fields that
-            // aren't defined in mscorlib, we can control exactly what
-            // gets loaded.
+        { // entry point for doorstop
+          // At this point, literally nothing but mscorlib is loaded,
+          // and since this class doesn't have any static fields that
+          // aren't defined in mscorlib, we can control exactly what
+          // gets loaded.
             _ = args;
             try
             {
                 if (Environment.GetCommandLineArgs().Contains("--verbose"))
-                {
                     WinConsole.Initialize();
-                }
 
                 SetupLibraryLoading();
 
@@ -64,16 +54,13 @@ namespace IPA.Injector
 
                 // this is weird, but it prevents Mono from having issues loading the type.
                 // IMPORTANT: NO CALLS TO ANY LOGGER CAN HAPPEN BEFORE THIS
-                LogLevel unused = StandardLogger.PrintFilter;
-
+                var unused = StandardLogger.PrintFilter;
                 #region // Above hack explaination
-
                 /* 
                  * Due to an unknown bug in the version of Mono that Unity uses, if the first access to StandardLogger
                  * is a call to a constructor, then Mono fails to load the type correctly. However, if the first access is to
                  * the above static property (or maybe any, but I don't really know) it behaves as expected and works fine.
                  */
-
                 #endregion
 
                 Default.Debug("Initializing logger");
@@ -91,7 +78,7 @@ namespace IPA.Injector
 
                 CriticalSection.Configure();
 
-                Logger.Injector.Debug("Prepping bootstrapper");
+                Logging.Logger.Injector.Debug("Prepping bootstrapper");
 
                 // make sure to load the game version and check boundaries before installing the bootstrap, because that uses the game assemblies property
                 GameVersionEarly.Load();
@@ -104,7 +91,7 @@ namespace IPA.Injector
 
                 Updates.InstallPendingUpdates();
 
-                LibLoader.SetupAssemblyFilenames(true);
+                Loader.LibLoader.SetupAssemblyFilenames(true);
 
                 pluginAsyncLoadTask = PluginLoader.LoadTask();
                 permissionFixTask = PermissionFix.FixPermissions(new DirectoryInfo(Environment.CurrentDirectory));
@@ -119,68 +106,60 @@ namespace IPA.Injector
         {
             string path;
             if (!Directory.Exists(path = Path.Combine(Environment.CurrentDirectory, "UserData")))
-            {
                 _ = Directory.CreateDirectory(path);
-            }
-
             if (!Directory.Exists(path = Path.Combine(Environment.CurrentDirectory, "Plugins")))
-            {
                 _ = Directory.CreateDirectory(path);
-            }
         }
 
         private static void SetupLibraryLoading()
         {
-            if (loadingDone)
-            {
-                return;
-            }
-
+            if (loadingDone) return;
             loadingDone = true;
-            LibLoader.Configure();
+            Loader.LibLoader.Configure();
         }
 
         private static void InstallHarmonyProtections()
-        {
-            // proxy function to delay resolution
+        { // proxy function to delay resolution
             HarmonyProtectorProxy.ProtectNull();
         }
 
         private static void InstallBootstrapPatch()
         {
-            Stopwatch? sw = Stopwatch.StartNew();
+            var sw = Stopwatch.StartNew();
 
-            AssemblyName? cAsmName = Assembly.GetExecutingAssembly().GetName();
-            string? managedPath = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
+            var cAsmName = Assembly.GetExecutingAssembly().GetName();
+            var managedPath = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
 
-            string? dataDir = new DirectoryInfo(managedPath).Parent.Name;
-            string? gameName = dataDir.Substring(0, dataDir.Length - 5);
+            var dataDir = new DirectoryInfo(managedPath).Parent.Name;
+            var gameName = dataDir.Substring(0, dataDir.Length - 5);
 
-            Logger.Injector.Debug("Finding backup");
-            string? backupPath = Path.Combine(Environment.CurrentDirectory, "IPA", "Backups", gameName);
-            BackupUnit? bkp = BackupManager.FindLatestBackup(backupPath);
+            Logging.Logger.Injector.Debug("Finding backup");
+            var backupPath = Path.Combine(Environment.CurrentDirectory, "IPA", "Backups", gameName);
+            var bkp = BackupManager.FindLatestBackup(backupPath);
             if (bkp == null)
-            {
-                Logger.Injector.Warn("No backup found! Was BSIPA installed using the installer?");
-            }
+                Logging.Logger.Injector.Warn("No backup found! Was BSIPA installed using the installer?");
 
-            Logger.Injector.Debug("Ensuring patch on UnityEngine.CoreModule exists");
+            Logging.Logger.Injector.Debug("Ensuring patch on UnityEngine.CoreModule exists");
 
             #region Insert patch into UnityEngine.CoreModule.dll
 
             {
-                string? unityPath = Path.Combine(managedPath,
+                var unityPath = Path.Combine(managedPath,
                     "UnityEngine.CoreModule.dll");
 
                 // this is a critical section because if you exit in here, CoreModule can die
-                using CriticalSection.AutoExecuteSection critSec = CriticalSection.ExecuteSection();
+                using var critSec = CriticalSection.ExecuteSection();
 
-                using AssemblyDefinition? unityAsmDef = AssemblyDefinition.ReadAssembly(unityPath,
-                    new ReaderParameters { ReadWrite = false, InMemory = true, ReadingMode = ReadingMode.Immediate });
-                ModuleDefinition? unityModDef = unityAsmDef.MainModule;
+                using var unityAsmDef = AssemblyDefinition.ReadAssembly(unityPath, new ReaderParameters
+                {
+                    ReadWrite = false,
+                    InMemory = true,
+                    ReadingMode = ReadingMode.Immediate
+                });
+                var unityModDef = unityAsmDef.MainModule;
 
                 bool modified = false;
-                foreach (AssemblyNameReference? asmref in unityModDef.AssemblyReferences)
+                foreach (var asmref in unityModDef.AssemblyReferences)
                 {
                     if (asmref.Name == cAsmName.Name)
                     {
@@ -192,25 +171,21 @@ namespace IPA.Injector
                     }
                 }
 
-                TypeDefinition? application = unityModDef.GetType("UnityEngine", "Camera");
+                var application = unityModDef.GetType("UnityEngine", "Camera");
 
                 if (application == null)
                 {
-                    Logger.Injector.Critical("UnityEngine.CoreModule doesn't have a definition for UnityEngine.Camera!"
-                                             + "Nothing to patch to get ourselves into the Unity run cycle!");
+                    Logging.Logger.Injector.Critical("UnityEngine.CoreModule doesn't have a definition for UnityEngine.Camera!"
+                        + "Nothing to patch to get ourselves into the Unity run cycle!");
                     goto endPatchCoreModule;
                 }
 
                 MethodDefinition? cctor = null;
-                foreach (MethodDefinition? m in application.Methods)
-                {
+                foreach (var m in application.Methods)
                     if (m.IsRuntimeSpecialName && m.Name == ".cctor")
-                    {
                         cctor = m;
-                    }
-                }
 
-                MethodReference? cbs = unityModDef.ImportReference(((Action)CreateBootstrapper).Method);
+                var cbs = unityModDef.ImportReference(((Action)CreateBootstrapper).Method);
 
                 if (cctor == null)
                 {
@@ -220,16 +195,16 @@ namespace IPA.Injector
                     application.Methods.Add(cctor);
                     modified = true;
 
-                    ILProcessor? ilp = cctor.Body.GetILProcessor();
+                    var ilp = cctor.Body.GetILProcessor();
                     ilp.Emit(OpCodes.Call, cbs);
                     ilp.Emit(OpCodes.Ret);
                 }
                 else
                 {
-                    ILProcessor? ilp = cctor.Body.GetILProcessor();
-                    for (int i = 0; i < Math.Min(2, cctor.Body.Instructions.Count); i++)
+                    var ilp = cctor.Body.GetILProcessor();
+                    for (var i = 0; i < Math.Min(2, cctor.Body.Instructions.Count); i++)
                     {
-                        Instruction? ins = cctor.Body.Instructions[i];
+                        var ins = cctor.Body.Instructions[i];
                         switch (i)
                         {
                             case 0 when ins.OpCode != OpCodes.Call:
@@ -239,7 +214,7 @@ namespace IPA.Injector
 
                             case 0:
                                 {
-                                    MethodReference? methodRef = ins.Operand as MethodReference;
+                                    var methodRef = ins.Operand as MethodReference;
                                     if (methodRef?.FullName != cbs.FullName)
                                     {
                                         ilp.Replace(ins, ilp.Create(OpCodes.Call, cbs));
@@ -263,33 +238,29 @@ namespace IPA.Injector
                 }
             }
             endPatchCoreModule:
-
             #endregion Insert patch into UnityEngine.CoreModule.dll
 
-            Logger.Injector.Debug("Ensuring game assemblies are virtualized");
+            Logging.Logger.Injector.Debug("Ensuring game assemblies are virtualized");
 
             #region Virtualize game assemblies
-
             bool isFirst = true;
-            foreach (string? name in SelfConfig.GameAssemblies_)
+            foreach (var name in SelfConfig.GameAssemblies_)
             {
-                string? ascPath = Path.Combine(managedPath, name);
+                var ascPath = Path.Combine(managedPath, name);
 
-                using CriticalSection.AutoExecuteSection execSec = CriticalSection.ExecuteSection();
+                using var execSec = CriticalSection.ExecuteSection();
 
                 try
                 {
-                    Logger.Injector.Debug($"Virtualizing {name}");
-                    using VirtualizedModule? ascModule = VirtualizedModule.Load(ascPath);
+                    Logging.Logger.Injector.Debug($"Virtualizing {name}");
+                    using var ascModule = VirtualizedModule.Load(ascPath);
                     ascModule.Virtualize(cAsmName, () => bkp?.Add(ascPath));
                 }
-                catch (Exception e)
+                catch (Exception e) 
                 {
-                    Logger.Injector.Error($"Could not virtualize {ascPath}");
+                    Logging.Logger.Injector.Error($"Could not virtualize {ascPath}");
                     if (SelfConfig.Debug_.ShowHandledErrorStackTraces_)
-                    {
-                        Logger.Injector.Error(e);
-                    }
+                        Logging.Logger.Injector.Error(e);
                 }
 
 #if BeatSaber
@@ -297,16 +268,17 @@ namespace IPA.Injector
                 {
                     try
                     {
-                        Logger.Injector.Debug("Applying anti-yeet patch");
+                        Logging.Logger.Injector.Debug("Applying anti-yeet patch");
 
-                        using AssemblyDefinition? ascAsmDef = AssemblyDefinition.ReadAssembly(ascPath,
-                            new ReaderParameters
-                            {
-                                ReadWrite = false, InMemory = true, ReadingMode = ReadingMode.Immediate
-                            });
-                        ModuleDefinition? ascModDef = ascAsmDef.MainModule;
+                        using var ascAsmDef = AssemblyDefinition.ReadAssembly(ascPath, new ReaderParameters
+                        {
+                            ReadWrite = false,
+                            InMemory = true,
+                            ReadingMode = ReadingMode.Immediate
+                        });
+                        var ascModDef = ascAsmDef.MainModule;
 
-                        TypeDefinition? deleter = ascModDef.GetType("IPAPluginsDirDeleter");
+                        var deleter = ascModDef.GetType("IPAPluginsDirDeleter");
                         deleter.Methods.Clear(); // delete all methods
 
                         ascAsmDef.Write(ascPath);
@@ -315,34 +287,29 @@ namespace IPA.Injector
                     }
                     catch (Exception e)
                     {
-                        Logger.Injector.Warn($"Could not apply anti-yeet patch to {ascPath}");
+                        Logging.Logger.Injector.Warn($"Could not apply anti-yeet patch to {ascPath}");
                         if (SelfConfig.Debug_.ShowHandledErrorStackTraces_)
-                        {
-                            Logger.Injector.Warn(e);
-                        }
+                            Logging.Logger.Injector.Warn(e);
                     }
                 }
 #endif
             }
-
             #endregion
 
             sw.Stop();
-            Logger.Injector.Info($"Installing bootstrapper took {sw.Elapsed}");
+            Logging.Logger.Injector.Info($"Installing bootstrapper took {sw.Elapsed}");
         }
+
+        private static bool bootstrapped;
 
         private static void CreateBootstrapper()
         {
-            if (bootstrapped)
-            {
-                return;
-            }
-
+            if (bootstrapped) return;
             bootstrapped = true;
 
-            Application.logMessageReceived += delegate(string condition, string stackTrace, LogType type)
+            Application.logMessageReceived += delegate (string condition, string stackTrace, LogType type)
             {
-                Level level = UnityLogRedirector.LogTypeToLevel(type);
+                var level = UnityLogRedirector.LogTypeToLevel(type);
                 UnityLogProvider.UnityLogger.Log(level, $"{condition}");
                 UnityLogProvider.UnityLogger.Log(level, $"{stackTrace}");
             };
@@ -354,9 +321,11 @@ namespace IPA.Injector
 
             InstallHarmonyProtections();
 
-            Bootstrapper? bootstrapper = new GameObject("NonDestructiveBootstrapper").AddComponent<Bootstrapper>();
+            var bootstrapper = new GameObject("NonDestructiveBootstrapper").AddComponent<Bootstrapper>();
             bootstrapper.Destroyed += Bootstrapper_Destroyed;
         }
+
+        private static bool loadingDone;
 
         private static void Bootstrapper_Destroyed()
         {

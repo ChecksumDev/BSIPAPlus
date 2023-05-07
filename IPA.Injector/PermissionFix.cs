@@ -18,44 +18,36 @@ namespace IPA.Injector
             Justification = "I very explicitly want the default scheduler")]
         public static Task FixPermissions(DirectoryInfo root)
         {
-            if (!root.Exists)
-            {
-                return new Task(() => { });
-            }
+            if (!root.Exists) return new Task(() => { });
 
             return Task.Factory.StartNew(() =>
             {
-                Stopwatch sw = Stopwatch.StartNew();
+                var sw = Stopwatch.StartNew();
                 try
                 {
-                    DirectorySecurity acl = root.GetAccessControl();
+                    var acl = root.GetAccessControl();
 
-                    AuthorizationRuleCollection rules = acl.GetAccessRules(true, true, typeof(SecurityIdentifier));
+                    var rules = acl.GetAccessRules(true, true, typeof(SecurityIdentifier));
 
-                    FileSystemRights requestedRights = FileSystemRights.Modify;
-                    InheritanceFlags requestedInheritance =
-                        InheritanceFlags.ContainerInherit | InheritanceFlags.ObjectInherit;
-                    PropagationFlags requestedPropagation = PropagationFlags.InheritOnly;
+                    var requestedRights = FileSystemRights.Modify;
+                    var requestedInheritance = InheritanceFlags.ContainerInherit | InheritanceFlags.ObjectInherit;
+                    var requestedPropagation = PropagationFlags.InheritOnly;
 
                     bool hasRule = false;
-                    for (int i = 0; i < rules.Count; i++)
+                    for (var i = 0; i < rules.Count; i++)
                     {
-                        AuthorizationRule rule = rules[i];
+                        var rule = rules[i];
 
                         if (rule is FileSystemAccessRule fsrule
                             && fsrule.AccessControlType == AccessControlType.Allow
                             && fsrule.InheritanceFlags.HasFlag(requestedInheritance)
                             && fsrule.PropagationFlags == requestedPropagation
                             && fsrule.FileSystemRights.HasFlag(requestedRights))
-                        {
-                            hasRule = true;
-                            break;
-                        }
+                        { hasRule = true; break; }
                     }
 
                     if (!hasRule)
-                    {
-                        // this is *sooo* fucking slow on first run
+                    { // this is *sooo* fucking slow on first run
                         acl.AddAccessRule(
                             new FileSystemAccessRule(
                                 new SecurityIdentifier(WellKnownSidType.WorldSid, null),
@@ -73,7 +65,6 @@ namespace IPA.Injector
                     Logger.Default.Warn("Error configuring permissions in the game install dir");
                     Logger.Default.Warn(e);
                 }
-
                 sw.Stop();
                 Logger.Default.Info($"Configuring permissions took {sw.Elapsed}");
             });

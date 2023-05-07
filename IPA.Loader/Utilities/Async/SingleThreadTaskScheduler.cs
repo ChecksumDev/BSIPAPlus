@@ -1,22 +1,24 @@
 ﻿using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Collections.Concurrent;
+using System.Linq;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
 namespace IPA.Utilities.Async
 {
     /// <summary>
-    ///     A single-threaded task scheduler that runs all of its tasks on the same thread.
+    /// A single-threaded task scheduler that runs all of its tasks on the same thread.
     /// </summary>
     public class SingleThreadTaskScheduler : TaskScheduler, IDisposable
     {
-        private readonly CancellationTokenSource exitTokenSource = new();
-        private readonly Thread runThread = new(ExecuteTasksS);
-        private readonly BlockingCollection<Task> tasks = new();
+        private readonly Thread runThread = new Thread(ExecuteTasksS);
+        private readonly BlockingCollection<Task> tasks = new BlockingCollection<Task>();
+        private readonly CancellationTokenSource exitTokenSource = new CancellationTokenSource();
 
         /// <summary>
-        ///     Gets whether or not the underlying thread has been started.
+        /// Gets whether or not the underlying thread has been started.
         /// </summary>
         /// <exception cref="ObjectDisposedException">Thrown if this object has already been disposed.</exception>
         public bool IsRunning
@@ -29,7 +31,7 @@ namespace IPA.Utilities.Async
         }
 
         /// <summary>
-        ///     Starts the thread that executes tasks scheduled with this <see cref="TaskScheduler" />
+        /// Starts the thread that executes tasks scheduled with this <see cref="TaskScheduler"/>
         /// </summary>
         /// <exception cref="ObjectDisposedException">Thrown if this object has already been disposed.</exception>
         public void Start()
@@ -40,12 +42,12 @@ namespace IPA.Utilities.Async
         }
 
         /// <summary>
-        ///     Terminates the runner thread, and waits for the currently running task to complete.
+        /// Terminates the runner thread, and waits for the currently running task to complete.
         /// </summary>
         /// <remarks>
-        ///     After this method returns, this object has been disposed and is no longer in a valid state.
+        /// After this method returns, this object has been disposed and is no longer in a valid state.
         /// </remarks>
-        /// <returns>an <see cref="IEnumerable{T}" /> of <see cref="Task" />s that did not execute</returns>
+        /// <returns>an <see cref="IEnumerable{T}"/> of <see cref="Task"/>s that did not execute</returns>
         /// <exception cref="ObjectDisposedException">Thrown if this object has already been disposed.</exception>
         public IEnumerable<Task> Exit()
         {
@@ -55,17 +57,17 @@ namespace IPA.Utilities.Async
             exitTokenSource.Cancel();
             runThread.Join();
 
-            List<Task> retTasks = new();
+            var retTasks = new List<Task>();
             retTasks.AddRange(tasks);
 
             return retTasks;
         }
 
         /// <summary>
-        ///     Waits for the runner thread to complete all tasks in the queue, then exits.
+        /// Waits for the runner thread to complete all tasks in the queue, then exits.
         /// </summary>
         /// <remarks>
-        ///     After this method returns, this object has been disposed and is no longer in a valid state.
+        /// After this method returns, this object has been disposed and is no longer in a valid state.
         /// </remarks>
         /// <exception cref="ObjectDisposedException">Thrown if this object has already been disposed.</exception>
         public void Join()
@@ -77,7 +79,7 @@ namespace IPA.Utilities.Async
         }
 
         /// <summary>
-        ///     Throws a <see cref="NotSupportedException" />.
+        /// Throws a <see cref="NotSupportedException"/>.
         /// </summary>
         /// <returns>nothing</returns>
         /// <exception cref="NotSupportedException">Always.</exception>
@@ -88,10 +90,10 @@ namespace IPA.Utilities.Async
         }
 
         /// <summary>
-        ///     Queues a given <see cref="Task" /> to this scheduler. The <see cref="Task" /> <i>must></i> be
-        ///     scheduled for this <see cref="TaskScheduler" /> by the runtime.
+        /// Queues a given <see cref="Task"/> to this scheduler. The <see cref="Task"/> <i>must></i> be
+        /// scheduled for this <see cref="TaskScheduler"/> by the runtime.
         /// </summary>
-        /// <param name="task">the <see cref="Task" /> to queue</param>
+        /// <param name="task">the <see cref="Task"/> to queue</param>
         /// <exception cref="ObjectDisposedException">Thrown if this object has already been disposed.</exception>
         protected override void QueueTask(Task task)
         {
@@ -101,17 +103,15 @@ namespace IPA.Utilities.Async
         }
 
         /// <summary>
-        ///     Rejects any attempts to execute a task inline.
+        /// Rejects any attempts to execute a task inline.
         /// </summary>
         /// <remarks>
-        ///     This task scheduler <i>always</i> runs its tasks on the thread that it manages, therefore it doesn't
-        ///     make sense to run it inline.
+        /// This task scheduler <i>always</i> runs its tasks on the thread that it manages, therefore it doesn't
+        /// make sense to run it inline.
         /// </remarks>
         /// <param name="task">the task to attempt to execute</param>
         /// <param name="taskWasPreviouslyQueued">whether the task was previously queued to this scheduler</param>
-        /// <returns>
-        ///     <see langword="false" />
-        /// </returns>
+        /// <returns><see langword="false"/></returns>
         /// <exception cref="ObjectDisposedException">Thrown if this object has already been disposed.</exception>
         protected override bool TryExecuteTaskInline(Task task, bool taskWasPreviouslyQueued)
         {
@@ -123,21 +123,19 @@ namespace IPA.Utilities.Async
         private void ThrowIfDisposed()
         {
             if (disposedValue)
-            {
                 throw new ObjectDisposedException(nameof(SingleThreadTaskScheduler));
-            }
         }
 
         private void ExecuteTasks()
         {
             ThrowIfDisposed();
 
-            CancellationToken token = exitTokenSource.Token;
+            var token = exitTokenSource.Token;
 
             try
             {
                 // while we are still accepting tasks, and we can pull out a task with an infinite wait duration
-                while (!tasks.IsCompleted && tasks.TryTake(out Task task, -1, token))
+                while (!tasks.IsCompleted && tasks.TryTake(out var task, -1, token))
                 {
                     TryExecuteTask(task);
                 }
@@ -150,23 +148,22 @@ namespace IPA.Utilities.Async
 
         private static void ExecuteTasksS(object param)
         {
-            SingleThreadTaskScheduler self = param as SingleThreadTaskScheduler;
+            var self = param as SingleThreadTaskScheduler;
             self.ExecuteTasks();
         }
 
         #region IDisposable Support
-
-        private bool disposedValue; // To detect redundant calls
+        private bool disposedValue = false; // To detect redundant calls
 
         /// <summary>
-        ///     Disposes this object.
+        /// Disposes this object.
         /// </summary>
         /// <param name="disposing">whether or not to dispose managed objects</param>
         protected virtual void Dispose(bool disposing)
         {
             if (!disposedValue)
             {
-                if (disposing)
+                if (disposing) 
                 {
                     exitTokenSource.Dispose();
                     tasks.Dispose();
@@ -177,14 +174,13 @@ namespace IPA.Utilities.Async
         }
 
         /// <summary>
-        ///     Disposes this object. This puts the object into an unusable state.
+        /// Disposes this object. This puts the object into an unusable state.
         /// </summary>
         public void Dispose()
         {
             // Do not change this code. Put cleanup code in Dispose(bool disposing) above.
             Dispose(true);
         }
-
         #endregion
     }
 }

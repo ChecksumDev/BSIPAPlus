@@ -4,7 +4,7 @@ on:
   push:
     branches-ignore:
       - gh-pages
-
+        
 permissions: write-all
 
 jobs:
@@ -22,46 +22,46 @@ jobs:
           git config --global core.autocrlf true
           git config --global user.email (($env:GITHUB_ACTOR,"@users.noreply.github.com") -join "")
           git config --global user.name $env:GITHUB_ACTOR
-
+          
       - name: Checkout branch
         uses: actions/checkout@v2
-
+        
       - name: Checkout submodules
         run: git submodule update --init --recursive
-
+        
       - name: Locate MSBuild
         uses: microsoft/setup-msbuild@v1.0.2
-
+        
       - name: Setup .NET Core
         uses: actions/setup-dotnet@v1
         with:
           # As usual, obtained from: https://dotnetcli.blob.core.windows.net/dotnet/release-metadata/5.0/releases.json
           dotnet-version: "6.0.100" # since we now use this
-
+          
       - name: Log in to package source
         shell: pwsh
         run: |
           dotnet nuget add source --username ${{ github.actor }} --password ${{ secrets.GITHUB_TOKEN }} `
           --store-password-in-clear-text --name github "https://nuget.pkg.github.com/Atlas-Rhythm/index.json"
-
+          
       - name: Clear Nuget Cache
         run: dotnet nuget locals all --clear
-
+        
       - name: Nuget Restore
         run: msbuild -t:Restore -m
-
+        
       - name: Install DocFX
         uses: crazy-max/ghaction-chocolatey@v1
         with:
           args: install docfx -y
-
+          
       - name: Checkout current pages
         uses: actions/checkout@v2
         with:
           ref: gh-pages
           token: ${{ secrets.GITHUB_TOKEN }}
           path: docs/${{ env.ORIGIN_SITE }}
-
+          
       - name: Build docs
         shell: powershell
         working-directory: ./docs
@@ -71,7 +71,7 @@ jobs:
           if ($lastexitcode -ne 0){
             throw [System.Exception] "docfx build failed with exit code $lastexitcode."
           }
-
+          
       - name: Publish master site to GitHub pages
         shell: powershell
         working-directory: ./docs
@@ -86,7 +86,7 @@ jobs:
           git commit -q -a -m "Generated Docs -- $srcMessage"
           git push -q origin gh-pages 
         if: github.ref == 'refs/heads/master'
-
+        
       - name: Publish branch site to GitHub pages
         shell: powershell
         working-directory: ./docs

@@ -2,52 +2,59 @@
 using IPA.Config.Data;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Reflection;
 using System.Reflection.Emit;
+using System.Text;
+using System.Threading.Tasks;
 
 namespace IPA.Config.Stores
 {
     internal static partial class GeneratedStoreImpl
     {
-        internal static SerializeObject<T> GetSerializerDelegate<T>()
+
+        internal delegate Value SerializeObject<T>(T obj);
+        internal delegate T DeserializeObject<T>(Value? val, object parent);
+
+        private static class DelegateStore<T> 
         {
-            return DelegateStore<T>.Serialize ??= GetSerializerDelegateInternal<T>();
+            public static SerializeObject<T>? Serialize;
+            public static DeserializeObject<T>? Deserialize;
         }
+
+        internal static SerializeObject<T> GetSerializerDelegate<T>()
+            => DelegateStore<T>.Serialize ??= GetSerializerDelegateInternal<T>();
 
         private static SerializeObject<T> GetSerializerDelegateInternal<T>()
         {
-            Type? type = typeof(T);
+            var type = typeof(T);
 #if DEBUG
-            TypeBuilder? defType = Module.DefineType($"{type.FullName}<SerializeTypeContainer>",
-                TypeAttributes.Public | TypeAttributes.Sealed | TypeAttributes.Abstract);
-            MethodBuilder? dynMethod = defType.DefineMethod("SerializeType",
-                MethodAttributes.Public | MethodAttributes.Static, typeof(Value), new[] { type });
+            var defType = Module.DefineType($"{type.FullName}<SerializeTypeContainer>", TypeAttributes.Public | TypeAttributes.Sealed | TypeAttributes.Abstract);
+            var dynMethod = defType.DefineMethod("SerializeType", MethodAttributes.Public | MethodAttributes.Static, typeof(Value), new[] { type });
 #else
-            var dynMethod =
- new DynamicMethod($"SerializeType>>{type.FullName}", typeof(Value), new[] { type }, Module, true);
+            var dynMethod = new DynamicMethod($"SerializeType>>{type.FullName}", typeof(Value), new[] { type }, Module, true);
 #endif
 
-            IEnumerable<SerializedMemberInfo>? structure = ReadObjectMembers(type);
+            var structure = ReadObjectMembers(type);
 
             //CreateAndInitializeConvertersFor(type, structure);
 
-            Action<ILGenerator>? loadObject = type.IsValueType
+            var loadObject = type.IsValueType
                 ? (Action<ILGenerator>)(il => il.Emit(OpCodes.Ldarga_S, 0))
                 : il => il.Emit(OpCodes.Ldarg_0);
-            Action<ILGenerator>? loadParent = type.IsValueType
+            var loadParent = type.IsValueType
                 ? (Action<ILGenerator>)(il => il.Emit(OpCodes.Ldnull))
                 : loadObject;
             {
-                ILGenerator? il = dynMethod.GetILGenerator();
+                var il = dynMethod.GetILGenerator();
 
-                LocalAllocator? GetLocal = MakeLocalAllocator(il);
+                var GetLocal = MakeLocalAllocator(il);
 
                 if (!type.IsValueType)
                 {
-                    Label notIGeneratedStore = il.DefineLabel();
-                    Type? IGeneratedStore_t = typeof(IGeneratedStore);
-                    MethodInfo? IGeneratedStore_Serialize =
-                        IGeneratedStore_t.GetMethod(nameof(IGeneratedStore.Serialize));
+                    var notIGeneratedStore = il.DefineLabel();
+                    var IGeneratedStore_t = typeof(IGeneratedStore);
+                    var IGeneratedStore_Serialize = IGeneratedStore_t.GetMethod(nameof(IGeneratedStore.Serialize));
 
                     il.Emit(OpCodes.Ldarg_0);
                     il.Emit(OpCodes.Isinst, IGeneratedStore_t);
@@ -75,37 +82,31 @@ namespace IPA.Config.Stores
         }
 
         internal static DeserializeObject<T> GetDeserializerDelegate<T>()
-        {
-            return DelegateStore<T>.Deserialize ??= GetDeserializerDelegateInternal<T>();
-        }
+            => DelegateStore<T>.Deserialize ??= GetDeserializerDelegateInternal<T>();
 
         private static DeserializeObject<T> GetDeserializerDelegateInternal<T>()
         {
-            Type? type = typeof(T);
+            var type = typeof(T);
             //var dynMethod = new DynamicMethod($"DeserializeType>>{type.FullName}", type, new[] { typeof(Value), typeof(object) }, Module, true);
 
 #if DEBUG
-            TypeBuilder? defType = Module.DefineType($"{type.FullName}<DeserializeTypeContainer>",
-                TypeAttributes.Public | TypeAttributes.Sealed | TypeAttributes.Abstract);
-            MethodBuilder? dynMethod = defType.DefineMethod("DeserializeType",
-                MethodAttributes.Public | MethodAttributes.Static, type, new[] { typeof(Value), typeof(object) });
+            var defType = Module.DefineType($"{type.FullName}<DeserializeTypeContainer>", TypeAttributes.Public | TypeAttributes.Sealed | TypeAttributes.Abstract);
+            var dynMethod = defType.DefineMethod("DeserializeType", MethodAttributes.Public | MethodAttributes.Static, type, new[] { typeof(Value), typeof(object) });
 #else
-            var dynMethod =
- new DynamicMethod($"DeserializeType>>{type.FullName}", type, new[] { typeof(Value), typeof(object) }, Module, true);
+            var dynMethod = new DynamicMethod($"DeserializeType>>{type.FullName}", type, new[] { typeof(Value), typeof(object) }, Module, true);
 #endif
 
-            IEnumerable<SerializedMemberInfo>? structure = ReadObjectMembers(type);
+            var structure = ReadObjectMembers(type);
 
             //CreateAndInitializeConvertersFor(type, structure);
 
             {
-                ILGenerator? il = dynMethod.GetILGenerator();
+                var il = dynMethod.GetILGenerator();
 
-                LocalAllocator? GetLocal = MakeLocalAllocator(il);
+                var GetLocal = MakeLocalAllocator(il);
 
-                Type? IGeneratedStore_t = typeof(IGeneratedStore);
-                MethodInfo? IGeneratedStore_Deserialize =
-                    IGeneratedStore_t.GetMethod(nameof(IGeneratedStore.Deserialize));
+                var IGeneratedStore_t = typeof(IGeneratedStore);
+                var IGeneratedStore_Deserialize = IGeneratedStore_t.GetMethod(nameof(IGeneratedStore.Deserialize));
 
                 void ParentObj(ILGenerator il)
                 {
@@ -124,20 +125,20 @@ namespace IPA.Config.Stores
                 }
                 else
                 {
-                    Type? Map_t = typeof(Map);
-                    MethodInfo? Map_TryGetValue = Map_t.GetMethod(nameof(Map.TryGetValue));
-                    MethodInfo? Object_GetType = typeof(object).GetMethod(nameof(GetType));
+                    var Map_t = typeof(Map);
+                    var Map_TryGetValue = Map_t.GetMethod(nameof(Map.TryGetValue));
+                    var Object_GetType = typeof(object).GetMethod(nameof(Object.GetType));
 
-                    LocalBuilder? valueLocal = il.DeclareLocal(typeof(Value));
-                    LocalBuilder? mapLocal = il.DeclareLocal(typeof(Map));
-                    LocalBuilder? resultLocal = il.DeclareLocal(type);
+                    var valueLocal = il.DeclareLocal(typeof(Value));
+                    var mapLocal = il.DeclareLocal(typeof(Map));
+                    var resultLocal = il.DeclareLocal(type);
 
-                    Label nonNull = il.DefineLabel();
+                    var nonNull = il.DefineLabel();
 
                     il.Emit(OpCodes.Ldarg_0);
                     il.Emit(OpCodes.Brtrue, nonNull);
 
-                    EmitLogError(il, "Attempting to deserialize null", false);
+                    EmitLogError(il, "Attempting to deserialize null", tailcall: false);
                     il.Emit(OpCodes.Ldloc, resultLocal);
                     il.Emit(OpCodes.Ret);
 
@@ -146,11 +147,11 @@ namespace IPA.Config.Stores
                     il.Emit(OpCodes.Isinst, Map_t);
                     il.Emit(OpCodes.Dup); // duplicate cloned value
                     il.Emit(OpCodes.Stloc, mapLocal);
-                    Label notMapError = il.DefineLabel();
+                    var notMapError = il.DefineLabel();
                     il.Emit(OpCodes.Brtrue, notMapError);
                     // handle error
-                    EmitLogError(il, $"Invalid root for deserializing {type.FullName}", false,
-                        il => EmitTypeof(il, Map_t), il =>
+                    EmitLogError(il, $"Invalid root for deserializing {type.FullName}", tailcall: false,
+                        expected: il => EmitTypeof(il, Map_t), found: il =>
                         {
                             il.Emit(OpCodes.Ldarg_0);
                             il.Emit(OpCodes.Callvirt, Object_GetType);
@@ -160,8 +161,7 @@ namespace IPA.Config.Stores
 
                     il.MarkLabel(notMapError);
 
-                    EmitDeserializeStructure(il, structure, mapLocal, valueLocal, GetLocal,
-                        il => il.Emit(OpCodes.Ldloca, resultLocal), ParentObj);
+                    EmitDeserializeStructure(il, structure, mapLocal, valueLocal, GetLocal, il => il.Emit(OpCodes.Ldloca, resultLocal), ParentObj);
 
                     il.Emit(OpCodes.Ldloc, resultLocal);
                     il.Emit(OpCodes.Ret);
@@ -174,16 +174,6 @@ namespace IPA.Config.Stores
 #else
             return (DeserializeObject<T>)dynMethod.CreateDelegate(typeof(DeserializeObject<T>));
 #endif
-        }
-
-        internal delegate Value SerializeObject<T>(T obj);
-
-        internal delegate T DeserializeObject<T>(Value? val, object parent);
-
-        private static class DelegateStore<T>
-        {
-            public static SerializeObject<T>? Serialize;
-            public static DeserializeObject<T>? Deserialize;
         }
     }
 }

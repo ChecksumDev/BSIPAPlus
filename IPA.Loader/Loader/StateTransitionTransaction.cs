@@ -7,16 +7,14 @@ using System.Threading.Tasks;
 namespace IPA.Loader
 {
     /// <summary>
-    ///     A class to represent a transaction for changing the state of loaded mods.
+    /// A class to represent a transaction for changing the state of loaded mods.
     /// </summary>
     public sealed class StateTransitionTransaction : IDisposable
     {
-        private readonly HashSet<PluginMetadata> currentlyDisabled;
         private readonly HashSet<PluginMetadata> currentlyEnabled;
-        private readonly HashSet<PluginMetadata> toDisable = new();
-        private readonly HashSet<PluginMetadata> toEnable = new();
-
-        private bool disposed;
+        private readonly HashSet<PluginMetadata> currentlyDisabled;
+        private readonly HashSet<PluginMetadata> toEnable = new ();
+        private readonly HashSet<PluginMetadata> toDisable = new ();
         private bool stateChanged;
 
         internal StateTransitionTransaction(IEnumerable<PluginMetadata> enabled, IEnumerable<PluginMetadata> disabled)
@@ -26,24 +24,18 @@ namespace IPA.Loader
         }
 
         /// <summary>
-        ///     Gets whether or not a game restart will be necessary to fully apply this transaction.
+        /// Gets whether or not a game restart will be necessary to fully apply this transaction.
         /// </summary>
-        /// <value>
-        ///     <see langword="true" /> if any mod who's state is changed cannot be changed at runtime, <see langword="false" />
-        ///     otherwise
-        /// </value>
+        /// <value><see langword="true"/> if any mod who's state is changed cannot be changed at runtime, <see langword="false"/> otherwise</value>
         /// <exception cref="ObjectDisposedException">if this object has been disposed</exception>
         public bool WillNeedRestart
             => ThrowIfDisposed<bool>()
-               || (stateChanged && toEnable.Concat(toDisable).Any(m => m.RuntimeOptions != RuntimeOptions.DynamicInit));
+            || (stateChanged && toEnable.Concat(toDisable).Any(m => m.RuntimeOptions != RuntimeOptions.DynamicInit));
 
         /// <summary>
-        ///     Gets whether or not the current state has changed.
+        /// Gets whether or not the current state has changed.
         /// </summary>
-        /// <value>
-        ///     <see langword="true" /> if the current state of the transaction is different from its construction,
-        ///     <see langword="false" /> otherwise
-        /// </value>
+        /// <value><see langword="true"/> if the current state of the transaction is different from its construction, <see langword="false"/> otherwise</value>
         /// <exception cref="ObjectDisposedException">if this object has been disposed</exception>
         public bool HasStateChanged => ThrowIfDisposed<bool>() || stateChanged;
 
@@ -53,140 +45,96 @@ namespace IPA.Loader
         internal IEnumerable<PluginMetadata> ToDisable => toDisable;
 
         /// <summary>
-        ///     Gets a list of plugins that are enabled according to this transaction's current state.
+        /// Gets a list of plugins that are enabled according to this transaction's current state.
         /// </summary>
         /// <exception cref="ObjectDisposedException">if this object has been disposed</exception>
         public IEnumerable<PluginMetadata> EnabledPlugins
             => ThrowIfDisposed<IEnumerable<PluginMetadata>>() ?? EnabledPluginsInternal;
-
-        private IEnumerable<PluginMetadata> EnabledPluginsInternal =>
-            currentlyEnabled.Except(toDisable).Concat(toEnable);
-
+        private IEnumerable<PluginMetadata> EnabledPluginsInternal => currentlyEnabled.Except(toDisable).Concat(toEnable);
         /// <summary>
-        ///     Gets a list of plugins that are disabled according to this transaction's current state.
+        /// Gets a list of plugins that are disabled according to this transaction's current state.
         /// </summary>
         /// <exception cref="ObjectDisposedException">if this object has been disposed</exception>
         public IEnumerable<PluginMetadata> DisabledPlugins
             => ThrowIfDisposed<IEnumerable<PluginMetadata>>() ?? DisabledPluginsInternal;
-
-        private IEnumerable<PluginMetadata> DisabledPluginsInternal =>
-            currentlyDisabled.Except(toEnable).Concat(toDisable);
+        private IEnumerable<PluginMetadata> DisabledPluginsInternal => currentlyDisabled.Except(toEnable).Concat(toDisable);
 
         /// <summary>
-        ///     Disposes and discards this transaction without committing it.
-        /// </summary>
-        public void Dispose()
-        {
-            disposed = true;
-        }
-
-        /// <summary>
-        ///     Checks if a plugin is enabled according to this transaction's current state.
+        /// Checks if a plugin is enabled according to this transaction's current state.
         /// </summary>
         /// <remarks>
-        ///     <para>This should be roughly equivalent to <c>EnabledPlugins.Contains(meta)</c>, but more performant.</para>
-        ///     <para>This should also always return the inverse of <see cref="IsDisabled(PluginMetadata)" /> for valid plugins.</para>
+        /// <para>This should be roughly equivalent to <c>EnabledPlugins.Contains(meta)</c>, but more performant.</para>
+        /// <para>This should also always return the inverse of <see cref="IsDisabled(PluginMetadata)"/> for valid plugins.</para>
         /// </remarks>
         /// <param name="meta">the plugin to check</param>
-        /// <returns><see langword="true" /> if the plugin is enabled, <see langword="false" /> otherwise</returns>
+        /// <returns><see langword="true"/> if the plugin is enabled, <see langword="false"/> otherwise</returns>
         /// <exception cref="ObjectDisposedException">if this object has been disposed</exception>
-        /// <seealso cref="EnabledPlugins" />
-        /// <seealso cref="IsDisabled(PluginMetadata)" />
+        /// <seealso cref="EnabledPlugins"/>
+        /// <seealso cref="IsDisabled(PluginMetadata)"/>
         public bool IsEnabled(PluginMetadata meta)
-        {
-            return ThrowIfDisposed<bool>() || IsEnabledInternal(meta);
-        }
-
+            => ThrowIfDisposed<bool>() || IsEnabledInternal(meta);
         private bool IsEnabledInternal(PluginMetadata meta)
-        {
-            return (currentlyEnabled.Contains(meta) && !toDisable.Contains(meta))
-                   || toEnable.Contains(meta);
-        }
-
+            => (currentlyEnabled.Contains(meta) && !toDisable.Contains(meta))
+            || toEnable.Contains(meta);
         /// <summary>
-        ///     Checks if a plugin is disabled according to this transaction's current state.
+        /// Checks if a plugin is disabled according to this transaction's current state.
         /// </summary>
         /// <remarks>
-        ///     <para>This should be roughly equivalent to <c>DisabledPlugins.Contains(meta)</c>, but more performant.</para>
-        ///     <para>This should also always return the inverse of <see cref="IsEnabled(PluginMetadata)" /> for valid plugins.</para>
+        /// <para>This should be roughly equivalent to <c>DisabledPlugins.Contains(meta)</c>, but more performant.</para>
+        /// <para>This should also always return the inverse of <see cref="IsEnabled(PluginMetadata)"/> for valid plugins.</para>
         /// </remarks>
         /// <param name="meta">the plugin to check</param>
-        /// <returns><see langword="true" /> if the plugin is disabled, <see langword="false" /> otherwise</returns>
+        /// <returns><see langword="true"/> if the plugin is disabled, <see langword="false"/> otherwise</returns>
         /// <exception cref="ObjectDisposedException">if this object has been disposed</exception>
-        /// <seealso cref="DisabledPlugins" />
-        /// <seealso cref="IsEnabled(PluginMetadata)" />
+        /// <seealso cref="DisabledPlugins"/>
+        /// <seealso cref="IsEnabled(PluginMetadata)"/>
         public bool IsDisabled(PluginMetadata meta)
-        {
-            return ThrowIfDisposed<bool>() || IsDisabledInternal(meta);
-        }
-
+            => ThrowIfDisposed<bool>() || IsDisabledInternal(meta);
         private bool IsDisabledInternal(PluginMetadata meta)
-        {
-            return (currentlyDisabled.Contains(meta) && !toEnable.Contains(meta))
-                   || toDisable.Contains(meta);
-        }
+            => (currentlyDisabled.Contains(meta) && !toEnable.Contains(meta))
+            || toDisable.Contains(meta);
 
         /// <summary>
-        ///     Enables a plugin in this transaction.
+        /// Enables a plugin in this transaction.
         /// </summary>
         /// <param name="meta">the plugin to enable</param>
         /// <param name="autoDeps">whether or not to automatically enable all dependencies of the plugin</param>
-        /// <returns><see langword="true" /> if the transaction's state was changed, <see langword="false" /> otherwise</returns>
+        /// <returns><see langword="true"/> if the transaction's state was changed, <see langword="false"/> otherwise</returns>
         /// <exception cref="ObjectDisposedException">if this object has been disposed</exception>
-        /// <exception cref="ArgumentException">if <paramref name="meta" /> is not loadable</exception>
-        /// <seealso cref="Enable(PluginMetadata, out IEnumerable{PluginMetadata}, bool)" />
+        /// <exception cref="ArgumentException">if <paramref name="meta"/> is not loadable</exception>
+        /// <seealso cref="Enable(PluginMetadata, out IEnumerable{PluginMetadata}, bool)"/>
         public bool Enable(PluginMetadata meta, bool autoDeps = true)
-        {
-            return Enable(meta, out IEnumerable<PluginMetadata>? _, autoDeps);
-        }
+            => Enable(meta, out var _, autoDeps);
 
         /// <summary>
-        ///     Enables a plugin in this transaction.
+        /// Enables a plugin in this transaction.
         /// </summary>
         /// <remarks>
-        ///     <paramref name="disabledDeps" /> will only be set when <paramref name="autoDeps" /> is <see langword="false" />.
+        /// <paramref name="disabledDeps"/> will only be set when <paramref name="autoDeps"/> is <see langword="false"/>.
         /// </remarks>
         /// <param name="meta">the plugin to enable</param>
-        /// <param name="disabledDeps">
-        ///     <see langword="null" /> if successful, otherwise a set of plugins that need to be enabled
-        ///     first
-        /// </param>
+        /// <param name="disabledDeps"><see langword="null"/> if successful, otherwise a set of plugins that need to be enabled first</param>
         /// <param name="autoDeps">whether or not to automatically enable all dependencies</param>
-        /// <returns><see langword="true" /> if the transaction's state was changed, <see langword="false" /> otherwise</returns>
+        /// <returns><see langword="true"/> if the transaction's state was changed, <see langword="false"/> otherwise</returns>
         /// <exception cref="ObjectDisposedException">if this object has been disposed</exception>
-        /// <exception cref="ArgumentException">if <paramref name="meta" /> is not loadable</exception>
+        /// <exception cref="ArgumentException">if <paramref name="meta"/> is not loadable</exception>
         public bool Enable(PluginMetadata meta, out IEnumerable<PluginMetadata>? disabledDeps, bool autoDeps = false)
-        {
-            // returns whether or not state was changed
+        { // returns whether or not state was changed
             ThrowIfDisposed();
-            if (meta is null)
-            {
-                throw new ArgumentNullException(nameof(meta));
-            }
-
+            if (meta is null) throw new ArgumentNullException(nameof(meta));
             if (!currentlyEnabled.Contains(meta) && !currentlyDisabled.Contains(meta))
-            {
                 throw new ArgumentException("Plugin metadata does not represent a loadable plugin", nameof(meta));
-            }
 
             disabledDeps = null;
-            if (IsEnabledInternal(meta))
-            {
-                return false;
-            }
+            if (IsEnabledInternal(meta)) return false;
 
-            PluginMetadata[]? needsEnabled =
-                meta.Dependencies.Where(m => DisabledPluginsInternal.Contains(m)).ToArray();
+            var needsEnabled = meta.Dependencies.Where(m => DisabledPluginsInternal.Contains(m)).ToArray();
             if (autoDeps)
             {
-                foreach (PluginMetadata? dep in needsEnabled)
+                foreach (var dep in needsEnabled)
                 {
-                    bool res = Enable(dep, out IEnumerable<PluginMetadata>? failedDisabled, true);
-                    if (failedDisabled == null)
-                    {
-                        continue;
-                    }
-
+                    var res = Enable(dep, out var failedDisabled, true);
+                    if (failedDisabled == null) continue;
                     disabledDeps = failedDisabled;
                     return res;
                 }
@@ -205,68 +153,46 @@ namespace IPA.Loader
         }
 
         /// <summary>
-        ///     Disables a plugin in this transaction.
+        /// Disables a plugin in this transaction.
         /// </summary>
         /// <param name="meta">the plugin to disable</param>
         /// <param name="autoDependents">whether or not to automatically disable all dependents of the plugin</param>
-        /// <returns><see langword="true" /> if the transaction's state was changed, <see langword="false" /> otherwise</returns>
+        /// <returns><see langword="true"/> if the transaction's state was changed, <see langword="false"/> otherwise</returns>
         /// <exception cref="ObjectDisposedException">if this object has been disposed</exception>
-        /// <exception cref="ArgumentException">if <paramref name="meta" /> is not loadable</exception>
-        /// <seealso cref="Disable(PluginMetadata, out IEnumerable{PluginMetadata}, bool)" />
+        /// <exception cref="ArgumentException">if <paramref name="meta"/> is not loadable</exception>
+        /// <seealso cref="Disable(PluginMetadata, out IEnumerable{PluginMetadata}, bool)"/>
         public bool Disable(PluginMetadata meta, bool autoDependents = true)
-        {
-            return Disable(meta, out IEnumerable<PluginMetadata>? _, autoDependents);
-        }
+            => Disable(meta, out var _, autoDependents);
 
         /// <summary>
-        ///     Disables a plugin in this transaction.
+        /// Disables a plugin in this transaction.
         /// </summary>
         /// <remarks>
-        ///     <paramref name="enabledDependents" /> will only be set when <paramref name="autoDependents" /> is
-        ///     <see langword="false" />.
+        /// <paramref name="enabledDependents"/> will only be set when <paramref name="autoDependents"/> is <see langword="false"/>.
         /// </remarks>
         /// <param name="meta">the plugin to disable</param>
-        /// <param name="enabledDependents">
-        ///     <see langword="null" /> if successful, otherwise a set of plugins that need to be
-        ///     disabled first
-        /// </param>
+        /// <param name="enabledDependents"><see langword="null"/> if successful, otherwise a set of plugins that need to be disabled first</param>
         /// <param name="autoDependents">whether or not to automatically disable all dependents of the plugin</param>
-        /// <returns><see langword="true" /> if the transaction's state was changed, <see langword="false" /> otherwise</returns>
+        /// <returns><see langword="true"/> if the transaction's state was changed, <see langword="false"/> otherwise</returns>
         /// <exception cref="ObjectDisposedException">if this object has been disposed</exception>
-        /// <exception cref="ArgumentException">if <paramref name="meta" /> is not loadable</exception>
-        public bool Disable(PluginMetadata meta, out IEnumerable<PluginMetadata>? enabledDependents,
-            bool autoDependents = false)
-        {
-            // returns whether or not state was changed
+        /// <exception cref="ArgumentException">if <paramref name="meta"/> is not loadable</exception>
+        public bool Disable(PluginMetadata meta, out IEnumerable<PluginMetadata>? enabledDependents, bool autoDependents = false)
+        { // returns whether or not state was changed
             ThrowIfDisposed();
-            if (meta is null)
-            {
-                throw new ArgumentNullException(nameof(meta));
-            }
-
+            if (meta is null) throw new ArgumentNullException(nameof(meta));
             if (!currentlyEnabled.Contains(meta) && !currentlyDisabled.Contains(meta))
-            {
                 throw new ArgumentException("Plugin metadata does not represent a loadable plugin", nameof(meta));
-            }
 
             enabledDependents = null;
-            if (IsDisabledInternal(meta))
-            {
-                return false;
-            }
+            if (IsDisabledInternal(meta)) return false;
 
-            PluginMetadata[]? needsDisabled =
-                EnabledPluginsInternal.Where(m => m.Dependencies.Contains(meta)).ToArray();
+            var needsDisabled = EnabledPluginsInternal.Where(m => m.Dependencies.Contains(meta)).ToArray();
             if (autoDependents)
             {
-                foreach (PluginMetadata? dep in needsDisabled)
+                foreach (var dep in needsDisabled)
                 {
-                    bool res = Disable(dep, out IEnumerable<PluginMetadata>? failedEnabled, true);
-                    if (failedEnabled == null)
-                    {
-                        continue;
-                    }
-
+                    var res = Disable(dep, out var failedEnabled, true);
+                    if (failedEnabled == null) continue;
                     enabledDependents = failedEnabled;
                     return res;
                 }
@@ -285,15 +211,14 @@ namespace IPA.Loader
         }
 
         /// <summary>
-        ///     Commits this transaction to actual state, enabling and disabling plugins as necessary.
+        /// Commits this transaction to actual state, enabling and disabling plugins as necessary.
         /// </summary>
         /// <remarks>
-        ///     <para>After this completes, this transaction will be disposed.</para>
-        ///     <para>
-        ///         The <see cref="Task" /> that is returned will error if <b>any</b> of the mods being <b>disabled</b>
-        ///         error. It is up to the caller to handle these in a sane way, like logging them. If nothing else, do something
-        ///         like this:
-        ///         <code lang="csharp">
+        /// <para>After this completes, this transaction will be disposed.</para>
+        /// <para>
+        /// The <see cref="Task"/> that is returned will error if <b>any</b> of the mods being <b>disabled</b>
+        /// error. It is up to the caller to handle these in a sane way, like logging them. If nothing else, do something like this:
+        /// <code lang="csharp">
         /// // get your transaction...
         /// var complete = transaction.Commit();
         /// await complete.ContinueWith(t => {
@@ -301,56 +226,47 @@ namespace IPA.Loader
         ///         Logger.log.Error($"Error disabling plugins: {t.Exception}");
         /// });
         /// </code>
-        ///         If you are running in a coroutine, you can use <see cref="Utilities.Async.Coroutines.WaitForTask(Task)" />
-        ///         instead of <see langword="await" />.
-        ///     </para>
-        ///     <para>
-        ///         If you are running on the Unity main thread, this will block until all enabling is done, and will return a task
-        ///         representing the disables.
-        ///         Otherwise, the task returned represents both, and <i>will not complete</i> until Unity has done (possibly)
-        ///         several updates, depending on
-        ///         the number of plugins being disabled, and the time they take.
-        ///     </para>
+        /// If you are running in a coroutine, you can use <see cref="Utilities.Async.Coroutines.WaitForTask(Task)"/> instead of <see langword="await"/>.
+        /// </para>
+        /// <para>
+        /// If you are running on the Unity main thread, this will block until all enabling is done, and will return a task representing the disables.
+        /// Otherwise, the task returned represents both, and <i>will not complete</i> until Unity has done (possibly) several updates, depending on
+        /// the number of plugins being disabled, and the time they take.
+        /// </para>
         /// </remarks>
-        /// <returns>a <see cref="Task" /> which completes whenever all disables complete</returns>
+        /// <returns>a <see cref="Task"/> which completes whenever all disables complete</returns>
         /// <exception cref="ObjectDisposedException">if this object has been disposed</exception>
         /// <exception cref="InvalidOperationException">if the plugins' state no longer matches this transaction's original state</exception>
-        public Task Commit()
-        {
-            return ThrowIfDisposed<Task>() ?? PluginManager.CommitTransaction(this);
-        }
+        public Task Commit() => ThrowIfDisposed<Task>() ?? PluginManager.CommitTransaction(this);
 
         /// <summary>
-        ///     Clones this transaction to be identical, but with unrelated underlying sets.
+        /// Clones this transaction to be identical, but with unrelated underlying sets.
         /// </summary>
-        /// <returns>the new <see cref="StateTransitionTransaction" /></returns>
+        /// <returns>the new <see cref="StateTransitionTransaction"/></returns>
         /// <exception cref="ObjectDisposedException">if this object has been disposed</exception>
         public StateTransitionTransaction Clone()
         {
             ThrowIfDisposed();
-            StateTransitionTransaction? copy = new(CurrentlyEnabled, CurrentlyDisabled);
-            foreach (PluginMetadata? toEnable in ToEnable)
-            {
+            var copy = new StateTransitionTransaction(CurrentlyEnabled, CurrentlyDisabled);
+            foreach (var toEnable in ToEnable)
                 _ = copy.toEnable.Add(toEnable);
-            }
-
-            foreach (PluginMetadata? toDisable in ToDisable)
-            {
+            foreach (var toDisable in ToDisable)
                 _ = copy.toDisable.Add(toDisable);
-            }
-
             copy.stateChanged = stateChanged;
             return copy;
         }
 
-        private void ThrowIfDisposed()
-        {
-            ThrowIfDisposed<byte>();
-        }
-
+        private void ThrowIfDisposed() => ThrowIfDisposed<byte>();
         private T? ThrowIfDisposed<T>()
         {
             return disposed ? throw new ObjectDisposedException(nameof(StateTransitionTransaction)) : default;
         }
+
+        private bool disposed;
+        /// <summary>
+        /// Disposes and discards this transaction without committing it.
+        /// </summary>
+        public void Dispose()
+            => disposed = true;
     }
 }

@@ -1,47 +1,68 @@
 ﻿#nullable enable
-using IPA.Config.Stores;
-using IPA.Utilities;
-using IPA.Utilities.Async;
+using IPA.Config.Data;
+using IPA.Config.Stores.Attributes;
+using IPA.Logging;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using System.Reflection.Emit;
+using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
+using System.Linq.Expressions;
 using System.Runtime.CompilerServices;
+using System.IO;
+using Boolean = IPA.Config.Data.Boolean;
+using System.Collections;
+using IPA.Utilities;
+using System.ComponentModel;
+using System.Collections.Concurrent;
+using IPA.Utilities.Async;
 #if NET3
 using Net3_Proxy;
 using Array = Net3_Proxy.Array;
 #endif
 
-[assembly: InternalsVisibleTo(GeneratedStore.AssemblyVisibilityTarget)]
+[assembly: InternalsVisibleTo(IPA.Config.Stores.GeneratedStore.AssemblyVisibilityTarget)]
 
 namespace IPA.Config.Stores
 {
     internal static partial class GeneratedStoreImpl
     {
+        public static T Create<T>() where T : class => (T)Create(typeof(T));
+
+        public static IConfigStore Create(Type type) => Create(type, null);
+
+        private static readonly MethodInfo CreateGParent = 
+            typeof(GeneratedStoreImpl).GetMethod(nameof(Create), BindingFlags.NonPublic | BindingFlags.Static, null, 
+                                             CallingConventions.Any, new[] { typeof(IGeneratedStore) }, Array.Empty<ParameterModifier>());
+        internal static T Create<T>(IGeneratedStore? parent) where T : class => (T)Create(typeof(T), parent);
+
+        private static IConfigStore Create(Type type, IGeneratedStore? parent)
+            => GetCreator(type)(parent);
+
+        private static readonly SingleCreationValueCache<Type, (GeneratedStoreCreator ctor, Type type)> generatedCreators = new();
+
+        private static (GeneratedStoreCreator ctor, Type type) GetCreatorAndGeneratedType(Type t)
+            => generatedCreators.GetOrAdd(t, MakeCreator);
+
+        internal static GeneratedStoreCreator GetCreator(Type t)
+            => GetCreatorAndGeneratedType(t).ctor;
+
+        internal static Type GetGeneratedType(Type t)
+            => GetCreatorAndGeneratedType(t).type;
+
         internal const string GeneratedAssemblyName = "IPA.Config.Generated";
 
-        private static readonly MethodInfo CreateGParent =
-            typeof(GeneratedStoreImpl).GetMethod(nameof(Create), BindingFlags.NonPublic | BindingFlags.Static, null,
-                CallingConventions.Any, new[] { typeof(IGeneratedStore) }, Array.Empty<ParameterModifier>());
-
-        private static readonly SingleCreationValueCache<Type, (GeneratedStoreCreator ctor, Type type)>
-            generatedCreators = new();
-
         private static AssemblyBuilder? assembly;
-
-        private static ModuleBuilder? module;
-
-        // TODO: does this need to be a SingleCreationValueCache or similar?
-        private static readonly Dictionary<Type, Dictionary<Type, FieldInfo>> TypeRequiredConverters = new();
-
         private static AssemblyBuilder Assembly
         {
             get
             {
                 if (assembly == null)
                 {
-                    AssemblyName? name = new(GeneratedAssemblyName);
+                    var name = new AssemblyName(GeneratedAssemblyName);
                     assembly = AppDomain.CurrentDomain.DefineDynamicAssembly(name, AssemblyBuilderAccess.RunAndSave);
                 }
 
@@ -49,86 +70,50 @@ namespace IPA.Config.Stores
             }
         }
 
-        private static ModuleBuilder Module
-        {
-            get
-            {
-                if (module == null)
-                {
-                    module = Assembly.DefineDynamicModule(Assembly.GetName().Name, Assembly.GetName().Name + ".dll");
-                }
-
-                return module;
-            }
-        }
-
-        public static T Create<T>() where T : class
-        {
-            return (T)Create(typeof(T));
-        }
-
-        public static IConfigStore Create(Type type)
-        {
-            return Create(type, null);
-        }
-
-        internal static T Create<T>(IGeneratedStore? parent) where T : class
-        {
-            return (T)Create(typeof(T), parent);
-        }
-
-        private static IConfigStore Create(Type type, IGeneratedStore? parent)
-        {
-            return GetCreator(type)(parent);
-        }
-
-        private static (GeneratedStoreCreator ctor, Type type) GetCreatorAndGeneratedType(Type t)
-        {
-            return generatedCreators.GetOrAdd(t, MakeCreator);
-        }
-
-        internal static GeneratedStoreCreator GetCreator(Type t)
-        {
-            return GetCreatorAndGeneratedType(t).ctor;
-        }
-
-        internal static Type GetGeneratedType(Type t)
-        {
-            return GetCreatorAndGeneratedType(t).type;
-        }
-
         internal static void DebugSaveAssembly(string file)
         {
             Assembly.Save(file);
         }
 
+        private static ModuleBuilder? module;
+        private static ModuleBuilder Module
+        {
+            get
+            {
+                if (module == null)
+                    module = Assembly.DefineDynamicModule(Assembly.GetName().Name, Assembly.GetName().Name + ".dll");
+
+                return module;
+            }
+        }
+
+        // TODO: does this need to be a SingleCreationValueCache or similar?
+        private static readonly Dictionary<Type, Dictionary<Type, FieldInfo>> TypeRequiredConverters = new();
         private static void CreateAndInitializeConvertersFor(Type type, IEnumerable<SerializedMemberInfo> structure)
         {
-            if (!TypeRequiredConverters.TryGetValue(type, out Dictionary<Type, FieldInfo>? converters))
+            if (!TypeRequiredConverters.TryGetValue(type, out var converters))
             {
-                TypeBuilder? converterFieldType = Module.DefineType($"{type.FullName}<Converters>",
-                    TypeAttributes.Public | TypeAttributes.Sealed | TypeAttributes.Abstract |
-                    TypeAttributes.AnsiClass); // a static class
+                var converterFieldType = Module.DefineType($"{type.FullName}<Converters>",
+                    TypeAttributes.Public | TypeAttributes.Sealed | TypeAttributes.Abstract | TypeAttributes.AnsiClass); // a static class
 
-                Type[]? uniqueConverterTypes = structure.Where(m => m.HasConverter)
+                var uniqueConverterTypes = structure.Where(m => m.HasConverter)
                     .Select(m => m.Converter).NonNull().Distinct().ToArray();
                 converters = new Dictionary<Type, FieldInfo>(uniqueConverterTypes.Length);
 
-                foreach (Type? convType in uniqueConverterTypes)
+                foreach (var convType in uniqueConverterTypes)
                 {
-                    FieldBuilder? field = converterFieldType.DefineField($"<converter>_{convType}", convType,
+                    var field = converterFieldType.DefineField($"<converter>_{convType}", convType,
                         FieldAttributes.FamORAssem | FieldAttributes.InitOnly | FieldAttributes.Static);
                     converters.Add(convType, field);
                 }
 
-                ConstructorBuilder? cctor = converterFieldType.DefineConstructor(MethodAttributes.Static,
-                    CallingConventions.Standard, Type.EmptyTypes);
+                var cctor = converterFieldType.DefineConstructor(MethodAttributes.Static, CallingConventions.Standard, Type.EmptyTypes);
                 {
-                    ILGenerator? il = cctor.GetILGenerator();
+                    var il = cctor.GetILGenerator();
 
-                    foreach (KeyValuePair<Type, FieldInfo> kvp in converters)
+                    foreach (var kvp in converters)
                     {
-                        ConstructorInfo? typeCtor = kvp.Key.GetConstructor(Type.EmptyTypes);
+                        var typeCtor = kvp.Key.GetConstructor(Type.EmptyTypes);
                         il.Emit(OpCodes.Newobj, typeCtor);
                         il.Emit(OpCodes.Stsfld, kvp.Value);
                     }
@@ -141,13 +126,9 @@ namespace IPA.Config.Stores
                 _ = converterFieldType.CreateType();
             }
 
-            foreach (SerializedMemberInfo? member in structure)
+            foreach (var member in structure)
             {
-                if (!member.HasConverter)
-                {
-                    continue;
-                }
-
+                if (!member.HasConverter) continue;
                 member.ConverterField = converters[member.Converter];
             }
         }

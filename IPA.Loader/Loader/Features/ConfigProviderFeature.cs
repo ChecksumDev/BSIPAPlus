@@ -8,6 +8,12 @@ namespace IPA.Loader.Features
 {
     internal class ConfigProviderFeature : Feature
     {
+        private class DataModel
+        {
+            [JsonProperty("type", Required = Required.Always)]
+            public string TypeName = "";
+        }
+
         protected override bool Initialize(PluginMetadata meta, JObject featureData)
         {
             DataModel data;
@@ -45,7 +51,7 @@ namespace IPA.Loader.Features
                         goto hasFilename;
                     case BadImageFormatException bi:
                         filename = bi.FileName;
-                        hasFilename:
+                    hasFilename:
                         InvalidMessage = $"Could not find {filename} while loading type";
                         break;
                     default:
@@ -66,12 +72,6 @@ namespace IPA.Loader.Features
                 InvalidMessage = $"Error while registering config provider: {e}";
                 return false;
             }
-        }
-
-        private class DataModel
-        {
-            [JsonProperty("type", Required = Required.Always)]
-            public string TypeName = "";
         }
     }
 }

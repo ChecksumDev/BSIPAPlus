@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Security.Permissions;
@@ -13,54 +14,30 @@ namespace Net3_Proxy
     public static class Extensions
     {
         public static T GetCustomAttribute<T>(this ParameterInfo element) where T : Attribute
-        {
-            return (T)GetCustomAttribute(element, typeof(T));
-        }
-
+            => (T)GetCustomAttribute(element, typeof(T));
         public static T GetCustomAttribute<T>(this MethodInfo element) where T : Attribute
-        {
-            return (T)GetCustomAttribute(element, typeof(T));
-        }
-
+            => (T)GetCustomAttribute(element, typeof(T));
         public static T GetCustomAttribute<T>(this ConstructorInfo element) where T : Attribute
-        {
-            return (T)GetCustomAttribute(element, typeof(T));
-        }
-
+            => (T)GetCustomAttribute(element, typeof(T));
         public static T GetCustomAttribute<T>(this Type element) where T : Attribute
-        {
-            return (T)GetCustomAttribute(element, typeof(T));
-        }
+            => (T)GetCustomAttribute(element, typeof(T));
 
         public static Attribute GetCustomAttribute(this MemberInfo element, Type attributeType)
-        {
-            return Attribute.GetCustomAttribute(element, attributeType);
-        }
-
+            => Attribute.GetCustomAttribute(element, attributeType);
         public static Attribute GetCustomAttribute(this ConstructorInfo element, Type attributeType)
-        {
-            return Attribute.GetCustomAttribute(element, attributeType);
-        }
-
-        public static Attribute GetCustomAttribute(this ParameterInfo element, Type attributeType)
-        {
-            return Attribute.GetCustomAttribute(element, attributeType);
-        }
-
+            => Attribute.GetCustomAttribute(element, attributeType);
+        public static Attribute GetCustomAttribute(this ParameterInfo element, Type attributeType) 
+            => Attribute.GetCustomAttribute(element, attributeType);
         public static Attribute GetCustomAttribute(this Type element, Type attributeType)
-        {
-            return Attribute.GetCustomAttribute(element, attributeType);
-        }
+            => Attribute.GetCustomAttribute(element, attributeType);
 
         public static StringBuilder Clear(this StringBuilder sb)
-        {
-            return sb.Remove(0, sb.Length);
-        }
+            => sb.Remove(0, sb.Length);
 
         public static bool HasFlag<E>(this E e, E o) where E : Enum
         {
-            ulong ei = Convert.ToUInt64(e);
-            ulong oi = Convert.ToUInt64(o);
+            var ei = Convert.ToUInt64(e);
+            var oi = Convert.ToUInt64(o);
             return (ei & oi) == oi;
         }
     }
@@ -77,25 +54,21 @@ namespace Net3_Proxy
             return self.EnumerateFiles(searchPattern, SearchOption.TopDirectoryOnly);
         }
 
-        public static IEnumerable<FileInfo> EnumerateFiles(this DirectoryInfo self, string searchPattern,
-            SearchOption searchOption)
+        public static IEnumerable<FileInfo> EnumerateFiles(this DirectoryInfo self, string searchPattern, SearchOption searchOption)
         {
             if (searchPattern == null)
             {
                 throw new ArgumentNullException(nameof(searchPattern));
             }
-
             return CreateEnumerateFilesIterator(self, searchPattern, searchOption);
         }
 
 
-        private static IEnumerable<FileInfo> CreateEnumerateFilesIterator(DirectoryInfo self, string searchPattern,
-            SearchOption searchOption)
+        private static IEnumerable<FileInfo> CreateEnumerateFilesIterator(DirectoryInfo self, string searchPattern, SearchOption searchOption)
         {
             foreach (string fileName in Directory.GetFiles(self.FullName, searchPattern, searchOption))
-            {
                 yield return new FileInfo(fileName);
-            }
+            yield break;
         }
     }
 
@@ -103,58 +76,44 @@ namespace Net3_Proxy
     {
         [ComVisible(false)]
         [HostProtection(SecurityAction.LinkDemand, ExternalThreading = true)]
-        public static Task CopyToAsync(this Stream src, Stream destination)
-        {
-            return CopyToAsync(src, destination, 81920);
-        }
+        public static Task CopyToAsync(this Stream src, Stream destination) => CopyToAsync(src, destination, 81920);
 
         [ComVisible(false)]
         [HostProtection(SecurityAction.LinkDemand, ExternalThreading = true)]
-        public static Task CopyToAsync(this Stream src, Stream destination, int bufferSize)
-        {
-            return CopyToAsync(src, destination, bufferSize, CancellationToken.None);
-        }
+        public static Task CopyToAsync(this Stream src, Stream destination, int bufferSize) => CopyToAsync(src, destination, bufferSize, CancellationToken.None);
 
         [ComVisible(false)]
         [HostProtection(SecurityAction.LinkDemand, ExternalThreading = true)]
-        public static Task CopyToAsync(this Stream src, Stream destination, int bufferSize,
-            CancellationToken cancellationToken)
+        public static Task CopyToAsync(this Stream src, Stream destination, int bufferSize, CancellationToken cancellationToken)
         {
             if (destination == null)
             {
                 throw new ArgumentNullException(nameof(destination));
             }
-
             if (bufferSize <= 0)
             {
                 throw new ArgumentOutOfRangeException(nameof(bufferSize), "Positive number required.");
             }
-
             if (!src.CanRead && !src.CanWrite)
             {
                 throw new ObjectDisposedException(null, "Cannot access a closed Stream.");
             }
-
             if (!destination.CanRead && !destination.CanWrite)
             {
                 throw new ObjectDisposedException("destination", "Cannot access a closed Stream.");
             }
-
             if (!src.CanRead)
             {
                 throw new NotSupportedException("Stream does not support reading.");
             }
-
             if (!destination.CanWrite)
             {
                 throw new NotSupportedException("Stream does not support writing.");
             }
-
             return CopyToAsyncInternal(src, destination, bufferSize, cancellationToken);
         }
 
-        private static async Task CopyToAsyncInternal(Stream src, Stream destination, int bufferSize,
-            CancellationToken cancellationToken)
+        private static async Task CopyToAsyncInternal(Stream src, Stream destination, int bufferSize, CancellationToken cancellationToken)
         {
             byte[] buffer = new byte[bufferSize];
             int bytesRead;
@@ -173,28 +132,24 @@ namespace Net3_Proxy
 
         [ComVisible(false)]
         [HostProtection(SecurityAction.LinkDemand, ExternalThreading = true)]
-        public static Task<int> ReadAsync(this Stream src, byte[] buffer, int offset, int count,
-            CancellationToken cancellationToken)
+        public static Task<int> ReadAsync(this Stream src, byte[] buffer, int offset, int count, CancellationToken cancellationToken)
         {
             if (!cancellationToken.IsCancellationRequested)
             {
                 return BeginEndReadAsync(src, buffer, offset, count);
             }
-
             return new Task<int>(() => 0, cancellationToken);
         }
 
         private static Task<int> BeginEndReadAsync(Stream src, byte[] buffer, int offset, int count)
-        {
-            return Task<int>.Factory.FromAsync(
-                (buffer_, offset_, count_, callback, state) =>
+            => Task<int>.Factory.FromAsync(
+                (byte[] buffer_, int offset_, int count_, AsyncCallback callback, object state) =>
                     src.BeginRead(buffer_, offset_, count_, callback, state),
-                asyncResult => src.EndRead(asyncResult),
-                buffer,
-                offset,
+                (IAsyncResult asyncResult) => src.EndRead(asyncResult), 
+                buffer, 
+                offset, 
                 count,
                 new object());
-        }
 
         [ComVisible(false)]
         [HostProtection(SecurityAction.LinkDemand, ExternalThreading = true)]
@@ -205,33 +160,29 @@ namespace Net3_Proxy
 
         [ComVisible(false)]
         [HostProtection(SecurityAction.LinkDemand, ExternalThreading = true)]
-        public static Task WriteAsync(this Stream src, byte[] buffer, int offset, int count,
-            CancellationToken cancellationToken)
+        public static Task WriteAsync(this Stream src, byte[] buffer, int offset, int count, CancellationToken cancellationToken)
         {
             if (!cancellationToken.IsCancellationRequested)
             {
                 return BeginEndWriteAsync(src, buffer, offset, count);
             }
-
             return new Task<int>(() => 0, cancellationToken);
         }
 
         private static Task BeginEndWriteAsync(Stream src, byte[] buffer, int offset, int count)
-        {
-            return Task.Factory.FromAsync(
-                (buffer_, offset_, count_, callback, state) =>
+            => Task.Factory.FromAsync(
+                (byte[] buffer_, int offset_, int count_, AsyncCallback callback, object state) =>
                     src.BeginWrite(buffer_, offset_, count_, callback, state),
-                asyncResult => src.EndWrite(asyncResult),
+                (IAsyncResult asyncResult) => src.EndWrite(asyncResult),
                 buffer,
                 offset,
                 count,
                 new object());
-        }
+
     }
 
     public static class SemaphoreSlimExtesnions
-    {
-        // TODO: finish the WaitAsync members
+    { // TODO: finish the WaitAsync members
         /*public static Task WaitAsync(this SemaphoreSlim self)
         {
             return null;

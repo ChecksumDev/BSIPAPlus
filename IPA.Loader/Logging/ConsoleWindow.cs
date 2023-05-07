@@ -1,8 +1,8 @@
-﻿using Microsoft.Win32.SafeHandles;
-using System;
+﻿using System;
 using System.ComponentModel;
 using System.IO;
 using System.Runtime.InteropServices;
+using Microsoft.Win32.SafeHandles;
 
 namespace IPA.Logging
 {
@@ -15,19 +15,19 @@ namespace IPA.Logging
         private static SafeFileHandle outHandle;
         private static SafeFileHandle inHandle;
 
-        internal static bool IsInitialized;
-
         public static bool UseVTEscapes { get; private set; } = true;
 
         internal static IntPtr OutHandle => outHandle.DangerousGetHandle();
         internal static IntPtr InHandle => inHandle.DangerousGetHandle();
+
+        internal static bool IsInitialized;
 
         public static void Initialize(bool alwaysCreateNewConsole = false)
         {
             bool consoleAttached = true;
             if (alwaysCreateNewConsole
                 || (AttachConsole(AttachParent) == 0
-                    && Marshal.GetLastWin32Error() != ErrorAccessDenied))
+                && Marshal.GetLastWin32Error() != ErrorAccessDenied))
             {
                 consoleAttached = AllocConsole() != 0;
             }
@@ -47,31 +47,29 @@ namespace IPA.Logging
 
         private static void InitializeOutStream()
         {
-            FileStream fs = CreateFileStream("CONOUT$", GenericWrite, FileShareWrite, FileAccess.Write, out outHandle);
+            var fs = CreateFileStream("CONOUT$", GenericWrite, FileShareWrite, FileAccess.Write, out outHandle);
             if (fs != null)
             {
-                StreamWriter writer = new(fs) { AutoFlush = true };
+                var writer = new StreamWriter(fs) { AutoFlush = true };
                 ConOut = writer;
                 Console.SetOut(writer);
                 Console.SetError(writer);
 
-                IntPtr handle = GetStdHandle(-11); // get stdout handle (should be CONOUT$ at this point)
-                if (GetConsoleMode(handle, out uint mode))
+                var handle = GetStdHandle(-11); // get stdout handle (should be CONOUT$ at this point)
+                if (GetConsoleMode(handle, out var mode))
                 {
                     mode |= EnableVTProcessing;
                     if (!SetConsoleMode(handle, mode))
                     {
                         UseVTEscapes = false;
-                        Console.Error.WriteLine(
-                            "Could not enable VT100 escape code processing (maybe you're running an old Windows?): " +
+                        Console.Error.WriteLine("Could not enable VT100 escape code processing (maybe you're running an old Windows?): " + 
                             new Win32Exception(Marshal.GetLastWin32Error()).Message);
                     }
                 }
                 else
                 {
                     UseVTEscapes = false;
-                    Console.Error.WriteLine(
-                        "Could not enable VT100 escape code processing (maybe you're running an old Windows?): " +
+                    Console.Error.WriteLine("Could not enable VT100 escape code processing (maybe you're running an old Windows?): " +
                         new Win32Exception(Marshal.GetLastWin32Error()).Message);
                 }
             }
@@ -79,7 +77,7 @@ namespace IPA.Logging
 
         private static void InitializeInStream()
         {
-            FileStream fs = CreateFileStream("CONIN$", GenericRead, FileShareRead, FileAccess.Read, out inHandle);
+            var fs = CreateFileStream("CONIN$", GenericRead, FileShareRead, FileAccess.Read, out inHandle);
             if (fs != null)
             {
                 Console.SetIn(ConIn = new StreamReader(fs));
@@ -87,17 +85,14 @@ namespace IPA.Logging
         }
 
         private static FileStream CreateFileStream(string name, uint win32DesiredAccess, uint win32ShareMode,
-            FileAccess dotNetFileAccess, out SafeFileHandle handle)
+                                FileAccess dotNetFileAccess, out SafeFileHandle handle)
         {
-            SafeFileHandle file =
-                new(
-                    CreateFileW(name, win32DesiredAccess, win32ShareMode, IntPtr.Zero, OpenExisting,
-                        FileAttributeNormal, IntPtr.Zero), true);
+            var file = new SafeFileHandle(CreateFileW(name, win32DesiredAccess, win32ShareMode, IntPtr.Zero, OpenExisting, FileAttributeNormal, IntPtr.Zero), true);
             if (!file.IsInvalid)
             {
                 handle = file;
 #if NET4
-                FileStream fs = new(file, dotNetFileAccess);
+                var fs = new FileStream(file, dotNetFileAccess);
 #elif NET3
 #pragma warning disable CS0618
                 // this is marked obsolete, and shouldn't need to be used, but the constructor used in .NET 4 doesn't exist in Unity's mscorlib.dll
@@ -111,8 +106,7 @@ namespace IPA.Logging
             return null;
         }
 
-        #region Win API Functions and Constants
-
+#region Win API Functions and Constants
         [DllImport("kernel32.dll",
             EntryPoint = "AllocConsole",
             SetLastError = true,
@@ -133,14 +127,14 @@ namespace IPA.Logging
             CharSet = CharSet.Unicode,
             CallingConvention = CallingConvention.StdCall)]
         private static extern IntPtr CreateFileW(
-            string lpFileName,
-            uint dwDesiredAccess,
-            uint dwShareMode,
-            IntPtr lpSecurityAttributes,
-            uint dwCreationDisposition,
-            uint dwFlagsAndAttributes,
-            IntPtr hTemplateFile
-        );
+              string lpFileName,
+              uint dwDesiredAccess,
+              uint dwShareMode,
+              IntPtr lpSecurityAttributes,
+              uint dwCreationDisposition,
+              uint dwFlagsAndAttributes,
+              IntPtr hTemplateFile
+            );
 
         [DllImport("kernel32.dll", CharSet = CharSet.Auto, SetLastError = true)]
         private static extern bool GetConsoleMode(IntPtr hConsoleHandle, out uint lpMode);
@@ -160,9 +154,9 @@ namespace IPA.Logging
         private const uint OpenExisting = 0x00000003;
         private const uint FileAttributeNormal = 0x80;
         private const uint ErrorAccessDenied = 5;
-
+        
         private const uint AttachParent = 0xFFFFFFFF;
 
-        #endregion
+#endregion
     }
 }

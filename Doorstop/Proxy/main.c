@@ -36,7 +36,7 @@
 EXTERN_C IMAGE_DOS_HEADER __ImageBase; // This is provided by MSVC with the infomration about this DLL
 
 HANDLE unhandledMutex;
-void ownMonoJitParseOptions(int argc, char* argv[]);
+void ownMonoJitParseOptions(int argc, char * argv[]);
 BOOL setOptions = FALSE;
 BOOL shouldBreakOnUnhandledException = TRUE;
 
@@ -54,7 +54,7 @@ void unhandledException(void* exc, void* data)
 
     if (exception != NULL)
     {
-        #ifdef _VERBOSE
+#ifdef _VERBOSE
         void* monostr = mono_object_to_string(exception, &exception);
         if (exception != NULL)
         {
@@ -78,9 +78,9 @@ void unhandledException(void* exc, void* data)
             mono_free(wstr);
             mono_free(str);
         }
-        #else
+#else
         ASSERT(FALSE, L"Could not stringify uncaught exception");
-        #endif
+#endif
     }
 
     char* str = mono_string_to_utf8(mstr);
@@ -94,11 +94,11 @@ void unhandledException(void* exc, void* data)
 
     if (shouldBreakOnUnhandledException)
     {
-        #ifdef _VERBOSE
+#ifdef _VERBOSE
         ASSERT(FALSE, L"Uncaught exception; see doorstop.log for details");
-        #else
+#else
         ASSERT_F(FALSE, L"Uncaught exception: %wS", wstr);
-        #endif
+#endif
     }
 
     mono_free(wstr);
@@ -109,87 +109,84 @@ void unhandledException(void* exc, void* data)
 
 // The hook for mono_jit_init_version
 // We use this since it will always be called once to initialize Mono's JIT
-void* ownMonoJitInitVersion(const char* root_domain_name, const char* runtime_version)
+void *ownMonoJitInitVersion(const char *root_domain_name, const char *runtime_version)
 {
-    // Call the original mono_jit_init_version to initialize the Unity Root Domain
-    if (debug)
-    {
-        char* opts[1];
-        opts[0] = "";
-        ownMonoJitParseOptions(0, opts);
-    }
-    #ifdef WIN32
-    if (debug_info)
-    {
+	// Call the original mono_jit_init_version to initialize the Unity Root Domain
+	if (debug) {
+		char* opts[1];
+		opts[0] = "";
+		ownMonoJitParseOptions(0, opts);
+	}
+#ifdef WIN32
+    if (debug_info) {
         mono_debug_init(MONO_DEBUG_FORMAT_MONO);
     }
-    #endif
+#endif
 
-    void* domain = mono_jit_init_version(root_domain_name, runtime_version);
+	void *domain = mono_jit_init_version(root_domain_name, runtime_version);
 
-    if (debug_info)
-    {
-        #ifdef WIN64
+	if (debug_info) {
+#ifdef WIN64
         mono_debug_init(MONO_DEBUG_FORMAT_MONO);
-        #endif
-        mono_debug_domain_create(domain);
-    }
+#endif
+		mono_debug_domain_create(domain);
+	}
 
-    size_t len = WideCharToMultiByte(CP_UTF8, 0, targetAssembly, -1, NULL, 0, NULL, NULL);
-    char* dll_path = memalloc(sizeof(char) * len);
-    WideCharToMultiByte(CP_UTF8, 0, targetAssembly, -1, dll_path, len, NULL, NULL);
+	size_t len = WideCharToMultiByte(CP_UTF8, 0, targetAssembly, -1, NULL, 0, NULL, NULL);
+	char *dll_path = memalloc(sizeof(char) * len);
+	WideCharToMultiByte(CP_UTF8, 0, targetAssembly, -1, dll_path, len, NULL, NULL);
 
-    LOG("Loading assembly: %s\n", dll_path);
-    // Load our custom assembly into the domain
-    void* assembly = mono_domain_assembly_open(domain, dll_path);
+	LOG("Loading assembly: %s\n", dll_path);
+	// Load our custom assembly into the domain
+	void *assembly = mono_domain_assembly_open(domain, dll_path);
 
-    if (assembly == NULL)
-        LOG("Failed to load assembly\n");
+	if (assembly == NULL)
+	LOG("Failed to load assembly\n");
 
-    memfree(dll_path);
-    ASSERT_SOFT(assembly != NULL, domain);
+	memfree(dll_path);
+	ASSERT_SOFT(assembly != NULL, domain);
 
-    // Get assembly's image that contains CIL code
-    void* image = mono_assembly_get_image(assembly);
-    ASSERT_SOFT(image != NULL, domain);
+	// Get assembly's image that contains CIL code
+	void *image = mono_assembly_get_image(assembly);
+	ASSERT_SOFT(image != NULL, domain);
 
-    // Note: we use the runtime_invoke route since jit_exec will not work on DLLs
+	// Note: we use the runtime_invoke route since jit_exec will not work on DLLs
 
-    // Create a descriptor for a random Main method
-    void* desc = mono_method_desc_new("*:Main", FALSE);
+	// Create a descriptor for a random Main method
+	void *desc = mono_method_desc_new("*:Main", FALSE);
 
-    // Find the first possible Main method in the assembly
-    void* method = mono_method_desc_search_in_image(desc, image);
-    ASSERT_SOFT(method != NULL, domain);
+	// Find the first possible Main method in the assembly
+	void *method = mono_method_desc_search_in_image(desc, image);
+	ASSERT_SOFT(method != NULL, domain);
 
-    void* signature = mono_method_signature(method);
+	void *signature = mono_method_signature(method);
 
-    // Get the number of parameters in the signature
-    UINT32 params = mono_signature_get_param_count(signature);
+	// Get the number of parameters in the signature
+	UINT32 params = mono_signature_get_param_count(signature);
 
-    void** args = NULL;
-    wchar_t* app_path = NULL;
-    if (params == 1)
-    {
-        // If there is a parameter, it's most likely a string[].
-        // Populate it as follows
-        // 0 => path to the game's executable
-        // 1 => --doorstop-invoke
+	void **args = NULL;
+	wchar_t *app_path = NULL;
+	if (params == 1)
+	{
+		// If there is a parameter, it's most likely a string[].
+		// Populate it as follows
+		// 0 => path to the game's executable
+		// 1 => --doorstop-invoke
 
-        get_module_path(NULL, &app_path, NULL, 0);
+		get_module_path(NULL, &app_path, NULL, 0);
 
-        void* exe_path = MONO_STRING(app_path);
-        void* doorstop_handle = MONO_STRING(L"--doorstop-invoke");
+		void *exe_path = MONO_STRING(app_path);
+		void *doorstop_handle = MONO_STRING(L"--doorstop-invoke");
 
-        void* args_array = mono_array_new(domain, mono_get_string_class(), 2);
+		void *args_array = mono_array_new(domain, mono_get_string_class(), 2);
 
-        SET_ARRAY_REF(args_array, 0, exe_path);
-        SET_ARRAY_REF(args_array, 1, doorstop_handle);
+		SET_ARRAY_REF(args_array, 0, exe_path);
+		SET_ARRAY_REF(args_array, 1, doorstop_handle);
 
-        args = memalloc(sizeof(void*) * 1);
-        _ASSERTE(args != nullptr);
-        args[0] = args_array;
-    }
+		args = memalloc(sizeof(void*) * 1);
+		_ASSERTE(args != nullptr);
+		args[0] = args_array;
+	}
 
     LOG("Installing uncaught exception handler\n");
 
@@ -210,21 +207,21 @@ void* ownMonoJitInitVersion(const char* root_domain_name, const char* runtime_ve
 
     unhandledMutex = CreateMutexW(NULL, FALSE, NULL);
 
-    LOG("Invoking method!\n");
+	LOG("Invoking method!\n");
 
     void* exception = NULL;
-    mono_runtime_invoke(method, NULL, args, &exception);
+	mono_runtime_invoke(method, NULL, args, &exception);
 
     WaitForSingleObject(unhandledMutex, INFINITE); // if the EH is triggered, wait for it
 
-    if (args != NULL)
-    {
-        memfree(app_path);
-        memfree(args);
-        NULL;
-    }
+	if (args != NULL)
+	{
+		memfree(app_path);
+		memfree(args);
+		NULL;
+	}
 
-    #ifdef _VERBOSE
+#ifdef _VERBOSE
     if (exception != NULL)
     {
         void* monostr = mono_object_to_string(exception, &exception);
@@ -237,73 +234,72 @@ void* ownMonoJitInitVersion(const char* root_domain_name, const char* runtime_ve
             mono_free(str);
         }
     }
-    #endif
+#endif
 
-    cleanupConfig();
+	cleanupConfig();
 
-    free_logger();
+	free_logger();
 
     ReleaseMutex(unhandledMutex);
 
-    return domain;
+	return domain;
 }
 
-void ownMonoJitParseOptions(int argc, char* argv[])
+void ownMonoJitParseOptions(int argc, char * argv[])
 {
-    setOptions = TRUE;
+	setOptions = TRUE;
 
-    int size = argc;
-    #ifdef WIN64
+	int size = argc;
+#ifdef WIN64
 	if (debug) size += 2;
-    #elif defined(WIN32)
+#elif defined(WIN32)
     if (debug) size += 1;
-    #endif
+#endif
 
-    char** arguments = memalloc(sizeof(char*) * size);
-    _ASSERTE(arguments != nullptr);
-    memcpy(arguments, argv, sizeof(char*) * argc);
-    if (debug)
-    {
-        //arguments[argc++] = "--debug";
-        #ifdef WIN64
+	char** arguments = memalloc(sizeof(char*) * size);
+	_ASSERTE(arguments != nullptr);
+	memcpy(arguments, argv, sizeof(char*) * argc);
+	if (debug) {
+		//arguments[argc++] = "--debug";
+#ifdef WIN64
         arguments[argc++] = "--soft-breakpoints";
-        #endif
-        if (debug_server)
-            arguments[argc] = "--debugger-agent=transport=dt_socket,address=0.0.0.0:10000,server=y";
-        else
-            arguments[argc] = "--debugger-agent=transport=dt_socket,address=127.0.0.1:10000,server=n";
-    }
+#endif
+		if (debug_server)
+			arguments[argc] = "--debugger-agent=transport=dt_socket,address=0.0.0.0:10000,server=y";
+		else
+			arguments[argc] = "--debugger-agent=transport=dt_socket,address=127.0.0.1:10000,server=n";
+	}
 
-    mono_jit_parse_options(size, arguments);
+	mono_jit_parse_options(size, arguments);
 
-    memfree(arguments);
+	memfree(arguments);
 }
 
 BOOL initialized = FALSE;
 
 void init(HMODULE module)
 {
-    if (!initialized)
-    {
-        initialized = TRUE;
-        LOG("Got mono.dll at %p\n", module);
-        loadMonoFunctions(module);
-    }
+	if (!initialized)
+	{
+		initialized = TRUE;
+		LOG("Got mono.dll at %p\n", module);
+		loadMonoFunctions(module);
+	}
 }
 
-void* WINAPI hookGetProcAddress(HMODULE module, const char* name)
+void * WINAPI hookGetProcAddress(HMODULE module, char const *name)
 {
-    if (lstrcmpA(name, "mono_jit_init_version") == 0)
-    {
-        init(module);
-        return (void*)&ownMonoJitInitVersion;
-    }
-    if (lstrcmpA(name, "mono_jit_parse_options") == 0 && debug)
-    {
-        init(module);
-        return (void*)&ownMonoJitParseOptions;
-    }
-    return (void*)GetProcAddress(module, name);
+	if (lstrcmpA(name, "mono_jit_init_version") == 0)
+	{
+		init(module);
+		return (void*)&ownMonoJitInitVersion;
+	}
+	if (lstrcmpA(name, "mono_jit_parse_options") == 0 && debug)
+	{
+		init(module);
+		return (void*)&ownMonoJitParseOptions;
+	}
+	return (void*)GetProcAddress(module, name);
 }
 
 BOOL hookGetMessage(
@@ -318,18 +314,16 @@ BOOL WINAPI hookGetMessageA(LPMSG msg, HWND hwnd, UINT wMsgFilterMin, UINT wMsgF
 {
     return hookGetMessage(FALSE, msg, hwnd, wMsgFilterMin, wMsgFilterMax);
 }
-
 BOOL WINAPI hookGetMessageW(LPMSG msg, HWND hwnd, UINT wMsgFilterMin, UINT wMsgFilterMax)
 {
     return hookGetMessage(TRUE, msg, hwnd, wMsgFilterMin, wMsgFilterMax);
 }
 
-typedef BOOL (*GetMessageHook)(BOOL isW, BOOL result, LPMSG msg, HWND hwnd, UINT filterMin, UINT filterMax);
+typedef BOOL(*GetMessageHook)(BOOL isW, BOOL result, LPMSG msg, HWND hwnd, UINT filterMin, UINT filterMax);
 
 GetMessageHook getMessageHook = NULL;
 
-__declspec(dllexport) void __stdcall SetGetMessageHook(GetMessageHook hook)
-{
+__declspec(dllexport) void __stdcall SetGetMessageHook(GetMessageHook hook) {
     getMessageHook = hook;
 }
 
@@ -345,23 +339,17 @@ BOOL hookGetMessage(
 
     BOOL result;
 
-    do
-    {
-        if (isW)
-        {
+    do {
+        if (isW) {
             result = GetMessageW(msg, hwnd, wMsgFilterMin, wMsgFilterMax);
-        }
-        else
-        {
+        } else {
             result = GetMessageA(msg, hwnd, wMsgFilterMin, wMsgFilterMax);
         }
 
-        if (getMessageHook)
-        {
+        if (getMessageHook) {
             loop = getMessageHook(isW, result, msg, hwnd, wMsgFilterMin, wMsgFilterMax);
         }
-    }
-    while (loop);
+    } while (loop);
 
     return result;
 }
@@ -379,19 +367,16 @@ BOOL WINAPI hookPeekMessageA(LPMSG msg, HWND hwnd, UINT wMsgFilterMin, UINT wMsg
 {
     return hookPeekMessage(FALSE, msg, hwnd, wMsgFilterMin, wMsgFilterMax, wRemoveMsg);
 }
-
 BOOL WINAPI hookPeekMessageW(LPMSG msg, HWND hwnd, UINT wMsgFilterMin, UINT wMsgFilterMax, UINT wRemoveMsg)
 {
     return hookPeekMessage(TRUE, msg, hwnd, wMsgFilterMin, wMsgFilterMax, wRemoveMsg);
 }
 
-typedef BOOL (*PeekMessageHook)(BOOL isW, BOOL result, LPMSG msg, HWND hwnd, UINT filterMin, UINT filterMax,
-                                UINT* wRemoveMsg);
+typedef BOOL(*PeekMessageHook)(BOOL isW, BOOL result, LPMSG msg, HWND hwnd, UINT filterMin, UINT filterMax, UINT* wRemoveMsg);
 
 PeekMessageHook peekMessageHook = NULL;
 
-__declspec(dllexport) void __stdcall SetPeekMessageHook(PeekMessageHook hook)
-{
+__declspec(dllexport) void __stdcall SetPeekMessageHook(PeekMessageHook hook) {
     peekMessageHook = hook;
 }
 
@@ -408,103 +393,94 @@ BOOL hookPeekMessage(
 
     BOOL result;
 
-    do
-    {
-        if (isW)
-        {
+    do {
+        if (isW) {
             result = PeekMessageW(msg, hwnd, wMsgFilterMin, wMsgFilterMax, wRemoveMsg);
         }
-        else
-        {
+        else {
             result = PeekMessageA(msg, hwnd, wMsgFilterMin, wMsgFilterMax, wRemoveMsg);
         }
 
-        if (peekMessageHook)
-        {
+        if (peekMessageHook) {
             loop = peekMessageHook(isW, result, msg, hwnd, wMsgFilterMin, wMsgFilterMax, &wRemoveMsg);
         }
-    }
-    while (loop);
+    } while (loop);
 
     return result;
 }
 
 BOOL WINAPI DllMain(HINSTANCE hInstDll, DWORD reasonForDllLoad, LPVOID reserved)
 {
-    if (reasonForDllLoad != DLL_PROCESS_ATTACH)
-        return TRUE;
+	if (reasonForDllLoad != DLL_PROCESS_ATTACH)
+		return TRUE;
 
-    hHeap = GetProcessHeap();
+	hHeap = GetProcessHeap();
 
-    init_logger();
+	init_logger();
 
-    LOG("Doorstop started!\n");
+	LOG("Doorstop started!\n");
 
-    wchar_t* dll_path = NULL;
-    size_t dll_path_len = get_module_path((HINSTANCE)&__ImageBase, &dll_path, NULL, 0);
+	wchar_t *dll_path = NULL;
+	size_t dll_path_len = get_module_path((HINSTANCE)&__ImageBase, &dll_path, NULL, 0);
 
-    LOG("DLL Path: %S\n", dll_path);
+	LOG("DLL Path: %S\n", dll_path);
 
-    wchar_t* dll_name = get_file_name_no_ext(dll_path, dll_path_len);
+	wchar_t *dll_name = get_file_name_no_ext(dll_path, dll_path_len);
 
-    LOG("Doorstop DLL Name: %S\n", dll_name);
+	LOG("Doorstop DLL Name: %S\n", dll_name);
 
-    loadProxy(dll_name);
-    loadConfig();
+	loadProxy(dll_name);
+	loadConfig();
 
-    // If the loader is disabled, don't inject anything.
-    if (enabled)
-    {
-        LOG("Doorstop enabled!\n");
-        ASSERT_SOFT(GetFileAttributesW(targetAssembly) != INVALID_FILE_ATTRIBUTES, TRUE);
+	// If the loader is disabled, don't inject anything.
+	if (enabled)
+	{
+		LOG("Doorstop enabled!\n");
+		ASSERT_SOFT(GetFileAttributesW(targetAssembly) != INVALID_FILE_ATTRIBUTES, TRUE);
 
-        HMODULE targetModule = GetModuleHandleA("UnityPlayer");
+		HMODULE targetModule = GetModuleHandleA("UnityPlayer");
 
-        if (targetModule == NULL)
-        {
-            LOG("No UnityPlayer.dll; using EXE as the hook target.");
-            targetModule = GetModuleHandleA(NULL);
-        }
+		if(targetModule == NULL)
+		{
+			LOG("No UnityPlayer.dll; using EXE as the hook target.");
+			targetModule = GetModuleHandleA(NULL);
+		}
 
-        LOG("Installing IAT hook\n");
-        if (!iat_hook(targetModule, "kernel32.dll", &GetProcAddress, &hookGetProcAddress))
-        {
-            LOG("Failed to install IAT hook!\n");
-            free_logger();
-        }
+		LOG("Installing IAT hook\n");
+		if (!iat_hook(targetModule, "kernel32.dll", &GetProcAddress, &hookGetProcAddress))
+		{
+			LOG("Failed to install IAT hook!\n");
+			free_logger();
+		}
 
-        LOG("Hook installed!\n");
+		LOG("Hook installed!\n");
 
         LOG("Attempting to install GetMessageA and GetMessageW hooks\n");
 
-        if (!iat_hook(targetModule, "user32.dll", &GetMessageA, &hookGetMessageA))
-        {
+        if (!iat_hook(targetModule, "user32.dll", &GetMessageA, &hookGetMessageA)) {
             LOG("Could not hook GetMessageA! (not an error)\n");
         }
-        if (!iat_hook(targetModule, "user32.dll", &GetMessageW, &hookGetMessageW))
-        {
+        if (!iat_hook(targetModule, "user32.dll", &GetMessageW, &hookGetMessageW)) {
             LOG("Could not hook GetMessageW! (not an error)\n");
         }
 
         LOG("Attempting to install PeekMessageA and PeekMessageW hooks\n");
 
-        if (!iat_hook(targetModule, "user32.dll", &PeekMessageA, &hookPeekMessageA))
-        {
+        if (!iat_hook(targetModule, "user32.dll", &PeekMessageA, &hookPeekMessageA)) {
             LOG("Could not hook PeekMessageA! (not an error)\n");
         }
-        if (!iat_hook(targetModule, "user32.dll", &PeekMessageW, &hookPeekMessageW))
-        {
+        if (!iat_hook(targetModule, "user32.dll", &PeekMessageW, &hookPeekMessageW)) {
             LOG("Could not hook PeekMessageW! (not an error)\n");
         }
-    }
-    else
-    {
-        LOG("Doorstop disabled! memfreeing resources\n");
-        free_logger();
-    }
+	}
+	else
+	{
+		LOG("Doorstop disabled! memfreeing resources\n");
+		free_logger();
+	}
 
-    memfree(dll_name);
-    memfree(dll_path);
+	memfree(dll_name);
+	memfree(dll_path);
 
-    return TRUE;
+	return TRUE;
 }

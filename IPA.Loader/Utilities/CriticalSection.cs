@@ -1,15 +1,16 @@
 ﻿#nullable enable
-using IPA.Logging;
 using System;
 using System.Runtime.InteropServices;
+using IPA.Logging;
 
 namespace IPA.Utilities
 {
     /// <summary>
-    ///     Provides utilities for managing various critical sections.
+    /// Provides utilities for managing various critical sections.
     /// </summary>
     public static class CriticalSection
     {
+
         internal static void Configure()
         {
             Logger.Default.Debug("Configuring exit handlers");
@@ -26,7 +27,6 @@ namespace IPA.Utilities
         #region Execute section
 
         private static readonly Win32.ConsoleCtrlDelegate registeredHandler = HandleExit;
-
         internal static void ResetExitHandlers()
         {
             _ = Win32.SetConsoleCtrlHandler(registeredHandler, false);
@@ -47,7 +47,8 @@ namespace IPA.Utilities
             public delegate bool PeekMessageHook(
                 bool isW,
                 uint result,
-                [MarshalAs(UnmanagedType.LPStruct)] in Win32.MSG message,
+                [MarshalAs(UnmanagedType.LPStruct)]
+                in Win32.MSG message,
                 IntPtr hwnd,
                 uint filterMin,
                 uint filterMax,
@@ -55,32 +56,31 @@ namespace IPA.Utilities
 
             [DllImport("bsipa-doorstop")]
             public static extern void SetPeekMessageHook(
-                [MarshalAs(UnmanagedType.FunctionPtr)] PeekMessageHook? hook);
+                [MarshalAs(UnmanagedType.FunctionPtr)]
+                PeekMessageHook? hook);
 
             [DllImport("bsipa-doorstop")]
             public static extern void SetIgnoreUnhandledExceptions(
                 [MarshalAs(UnmanagedType.Bool)] bool ignore);
         }
 
-        private static Win32.ConsoleCtrlDelegate? _handler;
-        private static volatile bool isInExecuteSection;
+        private static Win32.ConsoleCtrlDelegate? _handler = null;
+        private static volatile bool isInExecuteSection = false;
 
         // returns true to continue looping and calling PeekMessage
         private static bool PeekMessageHook(
-            bool isW,
-            uint result,
-            [MarshalAs(UnmanagedType.LPStruct)] in Win32.MSG message,
-            IntPtr hwnd,
-            uint filterMin,
-            uint filterMax,
-            ref Win32.PeekMessageParams removeMsg)
+                bool isW,
+                uint result,
+                [MarshalAs(UnmanagedType.LPStruct)]
+                in Win32.MSG message,
+                IntPtr hwnd,
+                uint filterMin,
+                uint filterMax,
+                ref Win32.PeekMessageParams removeMsg)
         {
             if (isInExecuteSection)
             {
-                if (result == 0)
-                {
-                    return false;
-                }
+                if (result == 0) return false;
 
                 switch (message.message)
                 {
@@ -91,9 +91,11 @@ namespace IPA.Utilities
                             exitRecieved = true;
                             return true;
                         }
-
-                        removeMsg = Win32.PeekMessageParams.PM_NOREMOVE;
-                        return true;
+                        else
+                        {
+                            removeMsg = Win32.PeekMessageParams.PM_NOREMOVE;
+                            return true;
+                        }
 
                     default:
                         return false;
@@ -106,56 +108,46 @@ namespace IPA.Utilities
         private static bool HandleExit(Win32.CtrlTypes type)
         {
             if (_handler != null)
-            {
                 return _handler(type);
-            }
 
             return false;
-        }
+        } 
 
-        private static volatile bool exitRecieved;
+        private static volatile bool exitRecieved = false;
 
         /// <summary>
-        ///     A struct that allows <c>using</c> blocks to manage an execute section.
+        /// A struct that allows <c>using</c> blocks to manage an execute section.
         /// </summary>
         public struct AutoExecuteSection : IDisposable
         {
             private readonly bool constructed;
-
-            internal AutoExecuteSection(bool val)
+            internal AutoExecuteSection(bool val) 
             {
                 constructed = val && !isInExecuteSection;
                 if (constructed)
-                {
                     EnterExecuteSection();
-                }
             }
 
             void IDisposable.Dispose()
             {
                 if (constructed)
-                {
                     ExitExecuteSection();
-                }
             }
         }
 
         /// <summary>
-        ///     Creates an <see cref="AutoExecuteSection" /> for automated management of an execute section.
+        /// Creates an <see cref="AutoExecuteSection"/> for automated management of an execute section.
         /// </summary>
-        /// <returns>the new <see cref="AutoExecuteSection" /> that manages the section</returns>
-        public static AutoExecuteSection ExecuteSection()
-        {
-            return new AutoExecuteSection(true);
-        }
+        /// <returns>the new <see cref="AutoExecuteSection"/> that manages the section</returns>
+        public static AutoExecuteSection ExecuteSection() => new AutoExecuteSection(true);
 
         /// <summary>
-        ///     Enters a critical execution section. Does not nest.
+        /// Enters a critical execution section. Does not nest.
         /// </summary>
         /// <note>
-        ///     During a critical execution section, the program must execute until the end of the section before
-        ///     exiting. If an exit signal is recieved during the section, it will be canceled, and the process
-        ///     will terminate at the end of the section.
+        /// During a critical execution section, the program must execute until the end of the section before
+        /// exiting. If an exit signal is recieved during the section, it will be canceled, and the process
+        /// will terminate at the end of the section.
         /// </note>
         public static void EnterExecuteSection()
         {
@@ -167,12 +159,12 @@ namespace IPA.Utilities
         }
 
         /// <summary>
-        ///     Exits a critical execution section. Does not nest.
+        /// Exits a critical execution section. Does not nest.
         /// </summary>
         /// <note>
-        ///     During a critical execution section, the program must execute until the end of the section before
-        ///     exiting. If an exit signal is recieved during the section, it will be canceled, and the process
-        ///     will terminate at the end of the section.
+        /// During a critical execution section, the program must execute until the end of the section before
+        /// exiting. If an exit signal is recieved during the section, it will be canceled, and the process
+        /// will terminate at the end of the section.
         /// </note>
         public static void ExitExecuteSection()
         {
@@ -182,9 +174,7 @@ namespace IPA.Utilities
             Reset(null, null);
 
             if (exitRecieved)
-            {
                 Environment.Exit(1);
-            }
         }
 
         #endregion

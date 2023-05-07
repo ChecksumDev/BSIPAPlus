@@ -1,23 +1,23 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
-    <Import Project="..\Common.props"/>
+  <Import Project="..\Common.props"/>
 
-    <PropertyGroup>
-        <OutputType>Exe</OutputType>
-        <TargetFrameworks>net472;netcoreapp3.1</TargetFrameworks>
-        <RuntimeIdentifiers>win7-x64;win7-x86;linux-x64</RuntimeIdentifiers>
-        <RootNamespace>IPA</RootNamespace>
-        <AssemblyName>IPA</AssemblyName>
-        <PathMap>$(SolutionDir)=C:\</PathMap>
-        <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
-        <GenerateRuntimeConfigurationFiles>true</GenerateRuntimeConfigurationFiles>
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFrameworks>net472;netcoreapp3.1</TargetFrameworks>
+    <RuntimeIdentifiers>win7-x64;win7-x86;linux-x64</RuntimeIdentifiers>
+    <RootNamespace>IPA</RootNamespace>
+    <AssemblyName>IPA</AssemblyName>
+    <PathMap>$(SolutionDir)=C:\</PathMap>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <GenerateRuntimeConfigurationFiles>true</GenerateRuntimeConfigurationFiles>
 
-        <GenerateDocumentationFile>false</GenerateDocumentationFile>
-        <ApplicationIcon>favicon.ico</ApplicationIcon>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <ApplicationIcon>favicon.ico</ApplicationIcon>
+  
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
 
-        <Nullable>enable</Nullable>
-    </PropertyGroup>
-
-    <Import Project="..\Common.targets"/>
-
+  <Import Project="..\Common.targets"/>
+  
 </Project>
