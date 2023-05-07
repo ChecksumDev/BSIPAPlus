@@ -1,24 +1,23 @@
 ﻿{
   "$schema": "https://raw.githubusercontent.com/beat-saber-modding-group/BSIPA-MetadataFileSchema/master/Schema.json",
-  "author": "DaNike",
+  "author": "Checksum",
   "description": [
     "#![IPA.Loader.description.md]",
     "A mod loader specifically for Beat Saber."
   ],
-  "id": "BSIPA",
-  "name": "Beat Saber IPA",
-  "version": "4.2.2",
+  "id": "BSIPAPlus",
+  "name": "BSIPA+",
+  "gameVersion": "1.29.1",
+  "version": "1.0.0",
   "icon": "IPA.icon_white.png",
   "features": {
-    "IPA.DefineFeature": [
-      {
+    "IPA.DefineFeature": {
         "type": "IPA.Loader.Features.ConfigProviderFeature",
         "name": "IPA.ConfigProvider"
       }
-    ]
   },
   "links": {
-    "project-home": "https://bsmg.github.io/BSIPAPlus/index.html",
+    "project-home": "https://checksumdev.github.io/BSIPAPlus/index.html",
     "project-source": "https://github.com/ChecksumDev/BSIPAPlus",
     "donate": "https://ko-fi.com/checksum"
   },
@@ -31,5 +30,5 @@
     "Libs/Mono.Cecil.dll",
     "Libs/SemVer.dll",
     "Libs/Hive.Versioning.dll"
-  ]
+  ],
 }
