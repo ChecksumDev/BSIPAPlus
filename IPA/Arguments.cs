@@ -9,11 +9,11 @@ namespace IPA
     public class Arguments
     {
         public static readonly Arguments CmdLine = new(Environment.GetCommandLineArgs());
+        private readonly List<ArgumentFlag> flagObjects = new();
+        private readonly Dictionary<char, string?> flags = new();
+        private readonly Dictionary<string, string?> longFlags = new();
 
         private readonly List<string> positional = new();
-        private readonly Dictionary<string, string?> longFlags = new();
-        private readonly Dictionary<char, string?> flags = new();
-        private readonly List<ArgumentFlag> flagObjects = new();
 
         private string[]? toParse;
 
@@ -22,32 +22,46 @@ namespace IPA
             toParse = args.Skip(1).ToArray();
         }
 
+        public IReadOnlyList<string> PositionalArgs => positional;
+
         public Arguments Flags(params ArgumentFlag[] toAdd)
         {
-            foreach (var f in toAdd) AddFlag(f);
+            foreach (ArgumentFlag? f in toAdd)
+            {
+                AddFlag(f);
+            }
+
             return this;
         }
 
         public void AddFlag(ArgumentFlag toAdd)
         {
-            if (toParse == null) throw new InvalidOperationException();
+            if (toParse == null)
+            {
+                throw new InvalidOperationException();
+            }
+
             flagObjects.Add(toAdd);
         }
 
         public void Process()
         {
-            if (toParse == null) throw new InvalidOperationException();
+            if (toParse == null)
+            {
+                throw new InvalidOperationException();
+            }
 
-            foreach (var arg in toParse)
+            foreach (string? arg in toParse)
             {
                 if (arg.StartsWith("--"))
-                { // parse as a long flag
-                    var name = arg.Substring(2); // cut off first two chars
+                {
+                    // parse as a long flag
+                    string? name = arg.Substring(2); // cut off first two chars
                     string? value = null;
 
                     if (name.Contains('='))
                     {
-                        var spl = name.Split('=');
+                        string[]? spl = name.Split('=');
                         name = spl[0];
                         value = string.Join("=", spl, 1, spl.Length - 1);
                     }
@@ -55,14 +69,15 @@ namespace IPA
                     longFlags.Add(name, value);
                 }
                 else if (arg.StartsWith("-"))
-                { // parse as flags
-                    var argument = arg.Substring(1); // cut off first char
+                {
+                    // parse as flags
+                    string? argument = arg.Substring(1); // cut off first char
 
-                    var subBuildState = new StringBuilder();
-                    var parsingValue = false;
-                    var escaped = false;
-                    var mainChar = ' ';
-                    foreach (var chr in argument)
+                    StringBuilder? subBuildState = new();
+                    bool parsingValue = false;
+                    bool escaped = false;
+                    char mainChar = ' ';
+                    foreach (char chr in argument)
                     {
                         if (!parsingValue)
                         {
@@ -87,7 +102,8 @@ namespace IPA
                                     subBuildState = new StringBuilder();
                                     continue;
                                 }
-                                else if (chr == '\\')
+
+                                if (chr == '\\')
                                 {
                                     escaped = true;
                                     continue;
@@ -104,32 +120,39 @@ namespace IPA
                     }
                 }
                 else
-                { // parse as positional
+                {
+                    // parse as positional
                     positional.Add(arg);
                 }
             }
 
             toParse = null;
 
-            foreach (var flag in flagObjects)
+            foreach (ArgumentFlag? flag in flagObjects)
             {
-                foreach (var charFlag in flag.ShortFlags)
+                foreach (char charFlag in flag.ShortFlags)
                 {
-                    if (!(flag.exists_ = HasFlag(charFlag))) continue;
+                    if (!(flag.exists_ = HasFlag(charFlag)))
+                    {
+                        continue;
+                    }
 
                     flag.value_ = GetFlagValue(charFlag);
                     goto FoundValue; // continue to next flagObjects item
                 }
 
-                foreach (var longFlag in flag.LongFlags)
+                foreach (string? longFlag in flag.LongFlags)
                 {
-                    if (!(flag.exists_ = HasLongFlag(longFlag))) continue;
+                    if (!(flag.exists_ = HasLongFlag(longFlag)))
+                    {
+                        continue;
+                    }
 
                     flag.value_ = GetLongFlagValue(longFlag);
                     goto FoundValue; // continue to next flagObjects item
                 }
 
-                FoundValue:;
+                FoundValue: ;
             }
         }
 
@@ -156,48 +179,41 @@ namespace IPA
         public void PrintHelp()
         {
             const string indent = "    ";
-            var filename = Path.GetFileName(Environment.GetCommandLineArgs()[0]);
+            string? filename = Path.GetFileName(Environment.GetCommandLineArgs()[0]);
             const string format = @"usage:
 {2}{0} [FLAGS] [ARGUMENTS]
 
 flags:
 {1}";
-            var flagsBuilder = new StringBuilder();
-            foreach (var flag in flagObjects)
+            StringBuilder? flagsBuilder = new();
+            foreach (ArgumentFlag? flag in flagObjects)
             {
                 _ = flagsBuilder
-                    .AppendFormat("{2}{0}{3}{1}", 
-                        string.Join(", ", flag.ShortFlags.Select(s => $"-{s}").Concat( flag.LongFlags.Select(s => $"--{s}")) ), 
+                    .AppendFormat("{2}{0}{3}{1}",
+                        string.Join(", ",
+                            flag.ShortFlags.Select(s => $"-{s}").Concat(flag.LongFlags.Select(s => $"--{s}"))),
                         Environment.NewLine, indent, flag.ValueString != null ? "=" + flag.ValueString : "")
                     .AppendFormat("{2}{2}{0}{1}", flag.DocString, Environment.NewLine, indent);
             }
 
             Console.Write(format, filename, flagsBuilder, indent);
         }
-
-        public IReadOnlyList<string> PositionalArgs => positional;
     }
 
     public class ArgumentFlag
     {
-        internal readonly List<char> ShortFlags = new();
         internal readonly List<string> LongFlags = new();
+        internal readonly List<char> ShortFlags = new();
+        internal bool exists_;
 
         internal string? value_;
-        internal bool exists_;
 
         public ArgumentFlag(params string[] flags)
         {
-            foreach (var part in flags)
+            foreach (string? part in flags)
+            {
                 AddPart(part);
-        }
-
-        private void AddPart(string flagPart)
-        {
-            if (flagPart.StartsWith("--"))
-                LongFlags.Add(flagPart.Substring(2));
-            else if (flagPart.StartsWith("-"))
-                ShortFlags.Add(flagPart[1]);
+            }
         }
 
         public bool Exists => exists_;
@@ -208,6 +224,21 @@ flags:
         public string DocString { get; set; } = "";
         public string? ValueString { get; set; }
 
-        public static implicit operator bool(ArgumentFlag f) => f.Exists;
+        private void AddPart(string flagPart)
+        {
+            if (flagPart.StartsWith("--"))
+            {
+                LongFlags.Add(flagPart.Substring(2));
+            }
+            else if (flagPart.StartsWith("-"))
+            {
+                ShortFlags.Add(flagPart[1]);
+            }
+        }
+
+        public static implicit operator bool(ArgumentFlag f)
+        {
+            return f.Exists;
+        }
     }
 }

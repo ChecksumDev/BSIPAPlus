@@ -4,18 +4,16 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Reflection;
+using System.Runtime.InteropServices;
 
 namespace IPA.Injector
 {
     internal class VirtualizedModule : IDisposable
     {
         private readonly FileInfo file;
-        private ModuleDefinition module;
 
-        public static VirtualizedModule Load(string engineFile)
-        {
-            return new VirtualizedModule(engineFile);
-        }
+        private TypeReference inModreqRef;
+        private ModuleDefinition module;
 
         private VirtualizedModule(string assemblyFile)
         {
@@ -24,21 +22,22 @@ namespace IPA.Injector
             LoadModules();
         }
 
+        public static VirtualizedModule Load(string engineFile)
+        {
+            return new VirtualizedModule(engineFile);
+        }
+
         private void LoadModules()
         {
-            module = ModuleDefinition.ReadModule(file.FullName, new ReaderParameters
-            {
-                ReadWrite = false,
-                InMemory = true,
-                ReadingMode = ReadingMode.Immediate
-            });
+            module = ModuleDefinition.ReadModule(file.FullName,
+                new ReaderParameters { ReadWrite = false, InMemory = true, ReadingMode = ReadingMode.Immediate });
         }
-        
+
         public void Virtualize(AssemblyName selfName, Action beforeChangeCallback = null)
         {
-            var changed = false;
-            var virtualize = true;
-            foreach (var r in module.AssemblyReferences)
+            bool changed = false;
+            bool virtualize = true;
+            foreach (AssemblyNameReference r in module.AssemblyReferences)
             {
                 if (r.Name == selfName.Name)
                 {
@@ -56,7 +55,7 @@ namespace IPA.Injector
                 changed = true;
                 module.AssemblyReferences.Add(new AssemblyNameReference(selfName.Name, selfName.Version));
 
-                foreach (var type in module.Types)
+                foreach (TypeDefinition type in module.Types)
                 {
                     VirtualizeType(type);
                 }
@@ -68,13 +67,11 @@ namespace IPA.Injector
                 module.Write(file.FullName);
             }
         }
-
-        private TypeReference inModreqRef;
         // private TypeReference outModreqRef;
 
         private void VirtualizeType(TypeDefinition type)
         {
-            if(type.IsSealed)
+            if (type.IsSealed)
             {
                 // Unseal
                 type.IsSealed = false;
@@ -86,19 +83,29 @@ namespace IPA.Injector
                 type.IsNestedPublic = true;
             }
 
-            if (type.IsInterface) return;
-            if (type.IsAbstract) return;
+            if (type.IsInterface)
+            {
+                return;
+            }
+
+            if (type.IsAbstract)
+            {
+                return;
+            }
 
             // These two don't seem to work.
-            if (type.Name == "SceneControl" || type.Name == "ConfigUI") return;
-            
+            if (type.Name == "SceneControl" || type.Name == "ConfigUI")
+            {
+                return;
+            }
+
             // Take care of sub types
-            foreach (var subType in type.NestedTypes)
+            foreach (TypeDefinition subType in type.NestedTypes)
             {
                 VirtualizeType(subType);
             }
 
-            foreach (var method in type.Methods)
+            foreach (MethodDefinition method in type.Methods)
             {
                 if (method.IsManaged
                     && method.IsIL
@@ -112,11 +119,11 @@ namespace IPA.Injector
                     && !method.HasOverrides)
                 {
                     // fix In parameters to have the modreqs required by the compiler
-                    foreach (var param in method.Parameters)
+                    foreach (ParameterDefinition param in method.Parameters)
                     {
                         if (param.IsIn)
                         {
-                            inModreqRef ??= module.ImportReference(typeof(System.Runtime.InteropServices.InAttribute));
+                            inModreqRef ??= module.ImportReference(typeof(InAttribute));
                             param.ParameterType = AddModreqIfNotExist(param.ParameterType, inModreqRef);
                         }
                         // Breaks override methods if modreq is applied to `out` parameters
@@ -136,33 +143,43 @@ namespace IPA.Injector
                 }
             }
 
-            foreach (var field in type.Fields)
+            foreach (FieldDefinition field in type.Fields)
             {
-                if (field.IsPrivate) field.IsFamily = true;
+                if (field.IsPrivate)
+                {
+                    field.IsFamily = true;
+                }
             }
         }
 
         private TypeReference AddModreqIfNotExist(TypeReference type, TypeReference mod)
         {
-            var (element, opt, req) = GetDecomposedModifiers(type);
+            (TypeReference element, List<TypeReference> opt, List<TypeReference> req) = GetDecomposedModifiers(type);
             if (!req.Contains(mod))
             {
                 req.Add(mod);
             }
+
             return BuildModifiedType(element, opt, req);
         }
 
-        private (TypeReference Element, List<TypeReference> ModOpt, List<TypeReference> ModReq) GetDecomposedModifiers(TypeReference type)
+        private (TypeReference Element, List<TypeReference> ModOpt, List<TypeReference> ModReq) GetDecomposedModifiers(
+            TypeReference type)
         {
-            var opt = new List<TypeReference>();
-            var req = new List<TypeReference>();
+            List<TypeReference> opt = new();
+            List<TypeReference> req = new();
 
             while (type is IModifierType modif)
             {
                 if (type.IsOptionalModifier)
+                {
                     opt.Add(modif.ModifierType);
+                }
+
                 if (type.IsRequiredModifier)
+                {
                     req.Add(modif.ModifierType);
+                }
 
                 type = modif.ElementType;
             }
@@ -170,14 +187,15 @@ namespace IPA.Injector
             return (type, opt, req);
         }
 
-        private TypeReference BuildModifiedType(TypeReference type, IEnumerable<TypeReference> opt, IEnumerable<TypeReference> req)
+        private TypeReference BuildModifiedType(TypeReference type, IEnumerable<TypeReference> opt,
+            IEnumerable<TypeReference> req)
         {
-            foreach (var mod in req)
+            foreach (TypeReference mod in req)
             {
                 type = type.MakeRequiredModifierType(mod);
             }
 
-            foreach (var mod in opt)
+            foreach (TypeReference mod in opt)
             {
                 type = type.MakeOptionalModifierType(mod);
             }
@@ -186,7 +204,8 @@ namespace IPA.Injector
         }
 
         #region IDisposable Support
-        private bool disposedValue = false; // To detect redundant calls
+
+        private bool disposedValue; // To detect redundant calls
 
         protected virtual void Dispose(bool disposing)
         {
@@ -214,6 +233,7 @@ namespace IPA.Injector
             Dispose(true);
             GC.SuppressFinalize(this);
         }
+
         #endregion
     }
 }

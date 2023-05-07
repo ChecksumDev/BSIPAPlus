@@ -1,17 +1,12 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Collections.Concurrent;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using System.Threading;
-using IPA.Utilities;
+﻿using IPA.Logging;
 using IPA.Utilities.Async;
+using System;
+using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.IO;
-using System.Runtime.CompilerServices;
-using IPA.Logging;
-using UnityEngine;
-using Logger = IPA.Logging.Logger;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 #if NET4
 using Task = System.Threading.Tasks.Task;
 using TaskEx = System.Threading.Tasks.Task;
@@ -21,24 +16,18 @@ namespace IPA.Config
 {
     internal static class ConfigRuntime
     {
-        private class DirInfoEqComparer : IEqualityComparer<DirectoryInfo>
-        {
-            public bool Equals(DirectoryInfo x, DirectoryInfo y)
-                => x?.FullName == y?.FullName;
+        private static readonly ConcurrentBag<Config> configs = new();
+        private static readonly AutoResetEvent configsChangedWatcher = new(false);
 
-            public int GetHashCode(DirectoryInfo obj)
-                => obj?.GetHashCode() ?? 0;
-        }
+        private static readonly ConcurrentDictionary<DirectoryInfo, FileSystemWatcher> watchers
+            = new(new DirInfoEqComparer());
 
-        private static readonly ConcurrentBag<Config> configs = new ConcurrentBag<Config>();
-        private static readonly AutoResetEvent configsChangedWatcher = new AutoResetEvent(false);
-        private static readonly ConcurrentDictionary<DirectoryInfo, FileSystemWatcher> watchers 
-            = new ConcurrentDictionary<DirectoryInfo, FileSystemWatcher>(new DirInfoEqComparer());
-        private static readonly ConcurrentDictionary<FileSystemWatcher, ConcurrentBag<Config>> watcherTrackConfigs
-            = new ConcurrentDictionary<FileSystemWatcher, ConcurrentBag<Config>>();
-        private static SingleThreadTaskScheduler loadScheduler = null;
-        private static TaskFactory loadFactory = null;
-        private static Thread saveThread = null;
+        private static readonly ConcurrentDictionary<FileSystemWatcher, ConcurrentBag<Config>> watcherTrackConfigs =
+            new();
+
+        private static SingleThreadTaskScheduler loadScheduler;
+        private static TaskFactory loadFactory;
+        private static Thread saveThread;
 
         private static void TryStartRuntime()
         {
@@ -48,8 +37,12 @@ namespace IPA.Config
                 loadScheduler = new SingleThreadTaskScheduler();
                 loadScheduler.Start();
             }
+
             if (loadFactory == null)
+            {
                 loadFactory = new TaskFactory(loadScheduler);
+            }
+
             if (saveThread == null || !saveThread.IsAlive)
             {
                 saveThread = new Thread(SaveThread);
@@ -61,24 +54,29 @@ namespace IPA.Config
         }
 
         private static void ShutdownRuntime(object sender, EventArgs e)
-            => ShutdownRuntime();
+        {
+            ShutdownRuntime();
+        }
+
         internal static void ShutdownRuntime()
         {
             try
             {
                 watcherTrackConfigs.Clear();
-                var watchList = watchers.ToArray();
+                KeyValuePair<DirectoryInfo, FileSystemWatcher>[] watchList = watchers.ToArray();
                 watchers.Clear();
 
-                foreach (var pair in watchList)
+                foreach (KeyValuePair<DirectoryInfo, FileSystemWatcher> pair in watchList)
+                {
                     pair.Value.EnableRaisingEvents = false;
+                }
 
                 loadScheduler.Join(); // we can wait for the loads to finish
                 saveThread.Abort(); // eww, but i don't like any of the other potential solutions
 
                 SaveAll();
             }
-            catch 
+            catch
             {
             }
         }
@@ -86,12 +84,16 @@ namespace IPA.Config
         public static void RegisterConfig(Config cfg)
         {
             lock (configs)
-            { // we only lock this segment, so that this only waits on other calls to this
+            {
+                // we only lock this segment, so that this only waits on other calls to this
                 if (configs.ToArray().Contains(cfg))
+                {
                     throw new InvalidOperationException("Config already registered to runtime!");
+                }
 
                 configs.Add(cfg);
             }
+
             configsChangedWatcher.Set();
 
             TryStartRuntime();
@@ -106,9 +108,10 @@ namespace IPA.Config
 
         private static void AddConfigToWatchers(Config config)
         {
-            var dir = config.File.Directory;
-            if (!watchers.TryGetValue(dir, out var watcher))
-            { // create the watcher
+            DirectoryInfo dir = config.File.Directory;
+            if (!watchers.TryGetValue(dir, out FileSystemWatcher watcher))
+            {
+                // create the watcher
                 watcher = watchers.GetOrAdd(dir, dir => new FileSystemWatcher(dir.FullName));
 
                 watcher.NotifyFilter =
@@ -129,7 +132,7 @@ namespace IPA.Config
 
             watcher.EnableRaisingEvents = false; // disable while we do shit
 
-            var bag = watcherTrackConfigs.GetOrAdd(watcher, w => new ConcurrentBag<Config>());
+            ConcurrentBag<Config> bag = watcherTrackConfigs.GetOrAdd(watcher, w => new ConcurrentBag<Config>());
             // we don't need to check containment because this function will only be called once per config ever
             bag.Add(config);
 
@@ -139,17 +142,22 @@ namespace IPA.Config
         private static void EnsureWritesSane(Config config)
         {
             // compare exchange loop to be sane
-            var writes = config.Writes;
+            int writes = config.Writes;
             while (writes < 0)
+            {
                 writes = Interlocked.CompareExchange(ref config.Writes, 0, writes);
+            }
         }
 
         private static void FileChangedEvent(object sender, FileSystemEventArgs e)
         {
-            var watcher = sender as FileSystemWatcher;
-            if (!watcherTrackConfigs.TryGetValue(watcher, out var bag)) return;
+            FileSystemWatcher watcher = sender as FileSystemWatcher;
+            if (!watcherTrackConfigs.TryGetValue(watcher, out ConcurrentBag<Config> bag))
+            {
+                return;
+            }
 
-            var config = bag.FirstOrDefault(c => c.File.FullName == e.FullPath);
+            Config config = bag.FirstOrDefault(c => c.File.FullName == e.FullPath);
             if (config != null && Interlocked.Decrement(ref config.Writes) + 1 <= 0)
             {
                 EnsureWritesSane(config);
@@ -158,22 +166,27 @@ namespace IPA.Config
         }
 
         public static Task TriggerFileLoad(Config config)
-            => loadFactory.StartNew(() => LoadTask(config));
+        {
+            return loadFactory.StartNew(() => LoadTask(config));
+        }
 
         public static Task TriggerLoadAll()
-            => TaskEx.WhenAll(configs.Select(TriggerFileLoad));
+        {
+            return TaskEx.WhenAll(configs.Select(TriggerFileLoad));
+        }
 
         /// <summary>
-        /// this is synchronous, unlike <see cref="TriggerFileLoad(Config)"/>
+        ///     this is synchronous, unlike <see cref="TriggerFileLoad(Config)" />
         /// </summary>
         /// <param name="config"></param>
         public static void Save(Config config)
         {
-            var store = config.Store;
+            IConfigStore store = config.Store;
 
             try
             {
-                using var readLock = Synchronization.LockRead(store.WriteSyncObject);
+                using Synchronization.ReaderWriterLockSlimReadLocker readLock =
+                    Synchronization.LockRead(store.WriteSyncObject);
 
                 EnsureWritesSane(config);
                 Interlocked.Increment(ref config.Writes);
@@ -191,28 +204,33 @@ namespace IPA.Config
         }
 
         /// <summary>
-        /// this is synchronous, unlike <see cref="TriggerLoadAll"/>
+        ///     this is synchronous, unlike <see cref="TriggerLoadAll" />
         /// </summary>
         public static void SaveAll()
         {
-            foreach (var config in configs)
+            foreach (Config config in configs)
+            {
                 Save(config);
+            }
         }
 
         private static void LoadTask(Config config)
-        { // these tasks will always be running in the same thread as each other
+        {
+            // these tasks will always be running in the same thread as each other
             try
             {
-                var store = config.Store;
-                using var writeLock = Synchronization.LockWrite(store.WriteSyncObject);
+                IConfigStore store = config.Store;
+                using Synchronization.ReaderWriterLockSlimWriteLocker writeLock =
+                    Synchronization.LockWrite(store.WriteSyncObject);
                 store.ReadFrom(config.configProvider);
             }
             catch (Exception e)
             {
-                Logger.Config.Error($"{nameof(IConfigStore)} for {config.File} errored while reading from the {nameof(IConfigProvider)}");
+                Logger.Config.Error(
+                    $"{nameof(IConfigStore)} for {config.File} errored while reading from the {nameof(IConfigProvider)}");
                 Logger.Config.Error(e);
             }
-        } 
+        }
 
         private static void SaveThread()
         {
@@ -220,15 +238,16 @@ namespace IPA.Config
             {
                 while (true)
                 {
-                    var configArr = configs.Where(c => c.Store != null).ToArray();
+                    Config[] configArr = configs.Where(c => c.Store != null).ToArray();
                     int index = -1;
                     try
                     {
-                        var waitHandles = new WaitHandle[configArr.Length + 1];
+                        WaitHandle[] waitHandles = new WaitHandle[configArr.Length + 1];
                         for (int i = 0; i < configArr.Length; i++)
                         {
                             waitHandles[i] = configArr[i].Store.SyncObject;
                         }
+
                         waitHandles[configArr.Length] = configsChangedWatcher;
 
                         index = WaitHandle.WaitAny(waitHandles);
@@ -239,7 +258,7 @@ namespace IPA.Config
                     }
                     catch (Exception e)
                     {
-                        Logger.Config.Error($"Error waiting for in-memory updates");
+                        Logger.Config.Error("Error waiting for in-memory updates");
                         Logger.Config.Error(e);
                         Thread.Sleep(TimeSpan.FromSeconds(1));
                     }
@@ -263,6 +282,19 @@ namespace IPA.Config
             catch (ThreadAbortException)
             {
                 // we got aborted :(
+            }
+        }
+
+        private class DirInfoEqComparer : IEqualityComparer<DirectoryInfo>
+        {
+            public bool Equals(DirectoryInfo x, DirectoryInfo y)
+            {
+                return x?.FullName == y?.FullName;
+            }
+
+            public int GetHashCode(DirectoryInfo obj)
+            {
+                return obj?.GetHashCode() ?? 0;
             }
         }
     }

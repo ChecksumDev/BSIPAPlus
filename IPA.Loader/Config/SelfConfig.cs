@@ -1,12 +1,14 @@
 ﻿// BEGIN: section ignore
+
 #nullable enable
-using IPA.Logging;
 using IPA.Config.Stores;
 using IPA.Config.Stores.Attributes;
 using IPA.Config.Stores.Converters;
-// END: section ignore
+using IPA.Logging;
+using IPA.Utilities;
 using Newtonsoft.Json;
 using System.Collections.Generic;
+// END: section ignore
 
 namespace IPA.Config
 {
@@ -27,10 +29,14 @@ namespace IPA.Config
         }
 
         protected virtual void CopyFrom(SelfConfig cfg) { }
+
         protected internal virtual void OnReload()
         {
             if (Regenerate)
+            {
                 CopyFrom(new SelfConfig { Regenerate = false });
+            }
+
             StandardLogger.Configure();
         }
 
@@ -41,7 +47,7 @@ namespace IPA.Config
 
         public static void ReadCommandLine(string[] args)
         {
-            foreach (var arg in args)
+            foreach (string? arg in args)
             {
                 switch (arg)
                 {
@@ -80,7 +86,7 @@ namespace IPA.Config
 
         public void CheckVersionBoundary()
         {
-            if (ResetGameAssebliesOnVersionChange && Utilities.UnityGame.IsGameVersionBoundary)
+            if (ResetGameAssebliesOnVersionChange && UnityGame.IsGameVersionBoundary)
             {
                 GameAssemblies = GetDefaultGameAssemblies();
             }
@@ -121,85 +127,97 @@ namespace IPA.Config
 
         public class Debug_
         {
-            public virtual bool ShowCallSource { get; set; } = false;
+            public virtual bool ShowCallSource { get; set; }
+
             // LINE: ignore 2
             public static bool ShowCallSource_ => (Instance?.Debug?.ShowCallSource ?? false)
-                                               ||   CommandLineValues.Debug.ShowCallSource;
+                                                  || CommandLineValues.Debug.ShowCallSource;
 
-            public virtual bool ShowDebug { get; set; } = false;
+            public virtual bool ShowDebug { get; set; }
+
             // LINE: ignore 2
             public static bool ShowDebug_ => (Instance?.Debug?.ShowDebug ?? false)
-                                          ||   CommandLineValues.Debug.ShowDebug;
+                                             || CommandLineValues.Debug.ShowDebug;
 
             // This option only takes effect after a full game restart, unless new logs are created again
-            public virtual bool CondenseModLogs { get; set; } = false;
+            public virtual bool CondenseModLogs { get; set; }
+
             // LINE: ignore 2
             public static bool CondenseModLogs_ => (Instance?.Debug?.CondenseModLogs ?? false)
-                                                ||   CommandLineValues.Debug.CondenseModLogs;
+                                                   || CommandLineValues.Debug.CondenseModLogs;
 
             // This option only takes effect after a full game restart, unless new logs are created again
-            public virtual bool CreateModLogs { get; set; } = false;
+            public virtual bool CreateModLogs { get; set; }
+
             // LINE: ignore 2
             public static bool CreateModLogs_ => (Instance?.Debug?.CreateModLogs ?? false)
-                                              ||    CommandLineValues.Debug.CreateModLogs;
+                                                 || CommandLineValues.Debug.CreateModLogs;
 
             public virtual bool ShowHandledErrorStackTraces { get; set; } = false;
+
             // LINE: ignore
             public static bool ShowHandledErrorStackTraces_ => Instance?.Debug?.ShowHandledErrorStackTraces ?? false;
 
             public virtual bool HideMessagesForPerformance { get; set; } = true;
+
             // LINE: ignore
             public static bool HideMessagesForPerformance_ => Instance?.Debug?.HideMessagesForPerformance ?? true;
 
             public virtual int HideLogThreshold { get; set; } = 512;
+
             // LINE: ignore
             public static int HideLogThreshold_ => Instance?.Debug?.HideLogThreshold ?? 512;
 
-            public virtual bool ShowTrace { get; set; } = false;
+            public virtual bool ShowTrace { get; set; }
+
             // LINE: ignore 2
             public static bool ShowTrace_ => (Instance?.Debug?.ShowTrace ?? false)
-                                          ||   CommandLineValues.Debug.ShowTrace;
+                                             || CommandLineValues.Debug.ShowTrace;
+
             public virtual bool SyncLogging { get; set; } = false;
+
             // LINE: ignore
             public static bool SyncLogging_ => Instance?.Debug?.SyncLogging ?? false;
 
-            public virtual bool DarkenMessages { get; set; } = false;
+            public virtual bool DarkenMessages { get; set; }
+
             // LINE: ignore 2
             public static bool DarkenMessages_ => (Instance?.Debug?.DarkenMessages ?? false)
-                                               || CommandLineValues.Debug.DarkenMessages;
+                                                  || CommandLineValues.Debug.DarkenMessages;
         }
 
         // LINE: ignore
-        [NonNullable]
-        public virtual Debug_ Debug { get; set; } = new();
+        [NonNullable] public virtual Debug_ Debug { get; set; } = new();
 
         public class AntiMalware_
         {
             public virtual bool UseIfAvailable { get; set; } = true;
+
             // LINE: ignore
             public static bool UseIfAvailable_ => Instance?.AntiMalware?.UseIfAvailable ?? true;
 
             public virtual bool RunPartialThreatCode { get; set; } = false;
+
             // LINE: ignore
             public static bool RunPartialThreatCode_ => Instance?.AntiMalware?.RunPartialThreatCode ?? true;
         }
 
         // LINE: ignore
-        [NonNullable]
-        public virtual AntiMalware_ AntiMalware { get; set; } = new();
+        [NonNullable] public virtual AntiMalware_ AntiMalware { get; set; } = new();
 
         public virtual bool YeetMods { get; set; } = true;
+
         // LINE: ignore 2
         public static bool YeetMods_ => (Instance?.YeetMods ?? true)
-                                     &&   CommandLineValues.YeetMods;
+                                        && CommandLineValues.YeetMods;
 
-        [JsonIgnore]
-        public bool WriteLogs { get; set; } = true;
+        [JsonIgnore] public bool WriteLogs { get; set; } = true;
 
         public virtual bool ResetGameAssebliesOnVersionChange { get; set; } = true;
 
         // LINE: ignore
-        [NonNullable, UseConverter(typeof(CollectionConverter<string, HashSet<string?>>))]
+        [NonNullable]
+        [UseConverter(typeof(CollectionConverter<string, HashSet<string?>>))]
         public virtual HashSet<string> GameAssemblies { get; set; } = GetDefaultGameAssemblies();
 
         // BEGIN: section ignore
@@ -207,8 +225,15 @@ namespace IPA.Config
             => new()
             {
 #if BeatSaber // provide these defaults only for Beat Saber builds
-                "Main.dll", "Core.dll", "HMLib.dll", "HMUI.dll", "HMRendering.dll", "VRUI.dll",
-                "BeatmapCore.dll", "GameplayCore.dll","HMLibAttributes.dll", 
+                "Main.dll",
+                "Core.dll",
+                "HMLib.dll",
+                "HMUI.dll",
+                "HMRendering.dll",
+                "VRUI.dll",
+                "BeatmapCore.dll",
+                "GameplayCore.dll",
+                "HMLibAttributes.dll",
 #else // otherwise specify Assembly-CSharp.dll
                 "Assembly-CSharp.dll"
 #endif
@@ -222,7 +247,8 @@ namespace IPA.Config
 #endif
 
         // LINE: ignore
-        public static HashSet<string> GameAssemblies_ => Instance?.GameAssemblies ?? new HashSet<string> { "Assembly-CSharp.dll" };
+        public static HashSet<string> GameAssemblies_ =>
+            Instance?.GameAssemblies ?? new HashSet<string> { "Assembly-CSharp.dll" };
 
         // LINE: ignore
 #if false // Used for documentation schema generation

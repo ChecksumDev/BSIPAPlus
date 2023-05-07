@@ -1,8 +1,5 @@
-﻿using System;
-using System.Collections;
+﻿using System.Collections;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
 
 namespace Net3_Proxy
 {
@@ -14,6 +11,7 @@ namespace Net3_Proxy
             {
                 return true;
             }
+
             for (int i = 0; i < value.Length; i++)
             {
                 if (!char.IsWhiteSpace(value[i]))
@@ -21,23 +19,26 @@ namespace Net3_Proxy
                     return false;
                 }
             }
+
             return true;
         }
 
         /// <summary>
-        /// Adds a value to the beginning of the sequence.
+        ///     Adds a value to the beginning of the sequence.
         /// </summary>
-        /// <typeparam name="T">the type of the elements of <paramref name="seq"/></typeparam>
+        /// <typeparam name="T">the type of the elements of <paramref name="seq" /></typeparam>
         /// <param name="seq">a sequence of values</param>
-        /// <param name="prep">the value to prepend to <paramref name="seq"/></param>
-        /// <returns>a new sequence beginning with <paramref name="prep"/></returns>
+        /// <param name="prep">the value to prepend to <paramref name="seq" /></param>
+        /// <returns>a new sequence beginning with <paramref name="prep" /></returns>
         public static IEnumerable<T> Prepend<T>(this IEnumerable<T> seq, T prep)
-            => new PrependEnumerable<T>(seq, prep);
+        {
+            return new PrependEnumerable<T>(seq, prep);
+        }
 
         private sealed class PrependEnumerable<T> : IEnumerable<T>
         {
-            private readonly IEnumerable<T> rest;
             private readonly T first;
+            private readonly IEnumerable<T> rest;
 
             public PrependEnumerable(IEnumerable<T> rest, T first)
             {
@@ -45,13 +46,22 @@ namespace Net3_Proxy
                 this.first = first;
             }
 
-            public IEnumerator<T> GetEnumerator() => new PrependEnumerator(this);
+            public IEnumerator<T> GetEnumerator()
+            {
+                return new PrependEnumerator(this);
+            }
+
+            IEnumerator IEnumerable.GetEnumerator()
+            {
+                return GetEnumerator();
+            }
 
             private sealed class PrependEnumerator : IEnumerator<T>
             {
-                private readonly IEnumerator<T> restEnum;
                 private readonly PrependEnumerable<T> enumerable;
-                private int state = 0;
+                private readonly IEnumerator<T> restEnum;
+                private int state;
+
                 public PrependEnumerator(PrependEnumerable<T> enumerable)
                 {
                     this.enumerable = enumerable;
@@ -62,7 +72,10 @@ namespace Net3_Proxy
 
                 object IEnumerator.Current => Current;
 
-                public void Dispose() => restEnum.Dispose();
+                public void Dispose()
+                {
+                    restEnum.Dispose();
+                }
 
                 public bool MoveNext()
                 {
@@ -78,8 +91,9 @@ namespace Net3_Proxy
                                 state = 2;
                                 return false;
                             }
-                            else
-                                Current = restEnum.Current;
+
+                            Current = restEnum.Current;
+
                             return true;
                         case 2:
                         default:
@@ -93,8 +107,6 @@ namespace Net3_Proxy
                     state = 0;
                 }
             }
-
-            IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
         }
     }
 }

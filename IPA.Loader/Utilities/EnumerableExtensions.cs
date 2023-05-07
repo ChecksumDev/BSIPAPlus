@@ -1,15 +1,12 @@
 ﻿#nullable enable
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace IPA.Utilities
 {
     /// <summary>
-    /// Extensions for <see cref="IEnumerable{T}"/> that don't currently exist in <c>System.Linq</c>.
+    ///     Extensions for <see cref="IEnumerable{T}" /> that don't currently exist in <c>System.Linq</c>.
     /// </summary>
     public static class EnumerableExtensions
     {
@@ -168,16 +165,19 @@ namespace IPA.Utilities
         */
 
         /// <summary>
-        /// LINQ-style extension method that filters <see langword="null"/> elements out of an enumeration.
+        ///     LINQ-style extension method that filters <see langword="null" /> elements out of an enumeration.
         /// </summary>
         /// <typeparam name="T">the type of the enumeration</typeparam>
         /// <param name="self">the enumeration to filter</param>
         /// <returns>a filtered enumerable</returns>
         public static IEnumerable<T> NonNull<T>(this IEnumerable<T?> self) where T : class
-            => self.Where(o => o != null)!;
+        {
+            return self.Where(o => o != null)!;
+        }
 
         /// <summary>
-        /// LINQ-style extension method that filters <see langword="null"/> elements out of an enumeration based on a converter.
+        ///     LINQ-style extension method that filters <see langword="null" /> elements out of an enumeration based on a
+        ///     converter.
         /// </summary>
         /// <typeparam name="T">the type of the enumeration</typeparam>
         /// <typeparam name="U">the type to compare to null</typeparam>
@@ -185,19 +185,24 @@ namespace IPA.Utilities
         /// <param name="pred">the predicate to select for filtering</param>
         /// <returns>a filtered enumerable</returns>
         public static IEnumerable<T> NonNull<T, U>(this IEnumerable<T> self, Func<T, U?> pred) where U : class
-            => self.Where(o => pred(o) != null);
+        {
+            return self.Where(o => pred(o) != null);
+        }
 
         /// <summary>
-        /// LINQ-style extension method that filters <see langword="null"/> elements from an enumeration of nullable types.
+        ///     LINQ-style extension method that filters <see langword="null" /> elements from an enumeration of nullable types.
         /// </summary>
         /// <typeparam name="T">the underlying type of the nullable enumeration</typeparam>
         /// <param name="self">the enumeration to filter</param>
         /// <returns>a filtered enumerable</returns>
         public static IEnumerable<T> NonNull<T>(this IEnumerable<T?> self) where T : struct
-            => self.Where(o => o != null).Select(o => o!.Value);
+        {
+            return self.Where(o => o != null).Select(o => o!.Value);
+        }
 
         /// <summary>
-        /// LINQ-style extension method that filters <see langword="null"/> elements out of an enumeration based on a converter to a nullable type.
+        ///     LINQ-style extension method that filters <see langword="null" /> elements out of an enumeration based on a
+        ///     converter to a nullable type.
         /// </summary>
         /// <typeparam name="T">the type of the enumeration</typeparam>
         /// <typeparam name="U">the type of the predicate's resulting nullable</typeparam>
@@ -205,6 +210,8 @@ namespace IPA.Utilities
         /// <param name="pred">the predicate to select for filtering</param>
         /// <returns>a filtered enumerable</returns>
         public static IEnumerable<T> NonNull<T, U>(this IEnumerable<T> self, Func<T, U?> pred) where U : struct
-            => self.Where(o => pred(o) != null);
+        {
+            return self.Where(o => pred(o) != null);
+        }
     }
 }

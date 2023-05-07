@@ -13,7 +13,7 @@
  */
 
 #pragma warning( disable : 4244 )
- 
+
 #include <windows.h>
 
 #define ADD_ORIGINAL(i, name) originalFunctions[i] = GetProcAddress(dll, #name)
@@ -28,57 +28,56 @@ FARPROC originalFunctions[50] = {0};
 
 void loadFunctions(HMODULE dll)
 {
-ADD_ORIGINAL(0, WinHttpAddRequestHeaders);
-ADD_ORIGINAL(1, WinHttpAutoProxySvcMain);
-ADD_ORIGINAL(2, WinHttpCheckPlatform);
-ADD_ORIGINAL(3, WinHttpCloseHandle);
-ADD_ORIGINAL(4, WinHttpConnect);
-ADD_ORIGINAL(5, WinHttpConnectionDeleteProxyInfo);
-ADD_ORIGINAL(6, WinHttpConnectionFreeNameList);
-ADD_ORIGINAL(7, WinHttpConnectionFreeProxyInfo);
-ADD_ORIGINAL(8, WinHttpConnectionFreeProxyList);
-ADD_ORIGINAL(9, WinHttpConnectionGetNameList);
-ADD_ORIGINAL(10, WinHttpConnectionGetProxyInfo);
-ADD_ORIGINAL(11, WinHttpConnectionGetProxyList);
-ADD_ORIGINAL(12, WinHttpConnectionSetProxyInfo);
-ADD_ORIGINAL(13, WinHttpCrackUrl);
-ADD_ORIGINAL(14, WinHttpCreateProxyResolver);
-ADD_ORIGINAL(15, WinHttpCreateUrl);
-ADD_ORIGINAL(16, WinHttpDetectAutoProxyConfigUrl);
-ADD_ORIGINAL(17, WinHttpFreeProxyResult);
-ADD_ORIGINAL(18, WinHttpGetDefaultProxyConfiguration);
-ADD_ORIGINAL(19, WinHttpGetIEProxyConfigForCurrentUser);
-ADD_ORIGINAL(20, WinHttpGetProxyForUrl);
-ADD_ORIGINAL(21, WinHttpGetProxyForUrlEx);
-ADD_ORIGINAL(22, WinHttpGetProxyResult);
-ADD_ORIGINAL(23, WinHttpGetTunnelSocket);
-ADD_ORIGINAL(24, WinHttpOpen);
-ADD_ORIGINAL(25, WinHttpOpenRequest);
-ADD_ORIGINAL(26, WinHttpProbeConnectivity);
-ADD_ORIGINAL(27, WinHttpQueryAuthSchemes);
-ADD_ORIGINAL(28, WinHttpQueryDataAvailable);
-ADD_ORIGINAL(29, WinHttpQueryHeaders);
-ADD_ORIGINAL(30, WinHttpQueryOption);
-ADD_ORIGINAL(31, WinHttpReadData);
-ADD_ORIGINAL(32, WinHttpReceiveResponse);
-ADD_ORIGINAL(33, WinHttpResetAutoProxy);
-ADD_ORIGINAL(34, WinHttpSaveProxyCredentials);
-ADD_ORIGINAL(35, WinHttpSendRequest);
-ADD_ORIGINAL(36, WinHttpSetCredentials);
-ADD_ORIGINAL(37, WinHttpSetDefaultProxyConfiguration);
-ADD_ORIGINAL(38, WinHttpSetOption);
-ADD_ORIGINAL(39, WinHttpSetStatusCallback);
-ADD_ORIGINAL(40, WinHttpSetTimeouts);
-ADD_ORIGINAL(41, WinHttpTimeFromSystemTime);
-ADD_ORIGINAL(42, WinHttpTimeToSystemTime);
-ADD_ORIGINAL(43, WinHttpWebSocketClose);
-ADD_ORIGINAL(44, WinHttpWebSocketCompleteUpgrade);
-ADD_ORIGINAL(45, WinHttpWebSocketQueryCloseStatus);
-ADD_ORIGINAL(46, WinHttpWebSocketReceive);
-ADD_ORIGINAL(47, WinHttpWebSocketSend);
-ADD_ORIGINAL(48, WinHttpWebSocketShutdown);
-ADD_ORIGINAL(49, WinHttpWriteData);
-
+    ADD_ORIGINAL(0, WinHttpAddRequestHeaders);
+    ADD_ORIGINAL(1, WinHttpAutoProxySvcMain);
+    ADD_ORIGINAL(2, WinHttpCheckPlatform);
+    ADD_ORIGINAL(3, WinHttpCloseHandle);
+    ADD_ORIGINAL(4, WinHttpConnect);
+    ADD_ORIGINAL(5, WinHttpConnectionDeleteProxyInfo);
+    ADD_ORIGINAL(6, WinHttpConnectionFreeNameList);
+    ADD_ORIGINAL(7, WinHttpConnectionFreeProxyInfo);
+    ADD_ORIGINAL(8, WinHttpConnectionFreeProxyList);
+    ADD_ORIGINAL(9, WinHttpConnectionGetNameList);
+    ADD_ORIGINAL(10, WinHttpConnectionGetProxyInfo);
+    ADD_ORIGINAL(11, WinHttpConnectionGetProxyList);
+    ADD_ORIGINAL(12, WinHttpConnectionSetProxyInfo);
+    ADD_ORIGINAL(13, WinHttpCrackUrl);
+    ADD_ORIGINAL(14, WinHttpCreateProxyResolver);
+    ADD_ORIGINAL(15, WinHttpCreateUrl);
+    ADD_ORIGINAL(16, WinHttpDetectAutoProxyConfigUrl);
+    ADD_ORIGINAL(17, WinHttpFreeProxyResult);
+    ADD_ORIGINAL(18, WinHttpGetDefaultProxyConfiguration);
+    ADD_ORIGINAL(19, WinHttpGetIEProxyConfigForCurrentUser);
+    ADD_ORIGINAL(20, WinHttpGetProxyForUrl);
+    ADD_ORIGINAL(21, WinHttpGetProxyForUrlEx);
+    ADD_ORIGINAL(22, WinHttpGetProxyResult);
+    ADD_ORIGINAL(23, WinHttpGetTunnelSocket);
+    ADD_ORIGINAL(24, WinHttpOpen);
+    ADD_ORIGINAL(25, WinHttpOpenRequest);
+    ADD_ORIGINAL(26, WinHttpProbeConnectivity);
+    ADD_ORIGINAL(27, WinHttpQueryAuthSchemes);
+    ADD_ORIGINAL(28, WinHttpQueryDataAvailable);
+    ADD_ORIGINAL(29, WinHttpQueryHeaders);
+    ADD_ORIGINAL(30, WinHttpQueryOption);
+    ADD_ORIGINAL(31, WinHttpReadData);
+    ADD_ORIGINAL(32, WinHttpReceiveResponse);
+    ADD_ORIGINAL(33, WinHttpResetAutoProxy);
+    ADD_ORIGINAL(34, WinHttpSaveProxyCredentials);
+    ADD_ORIGINAL(35, WinHttpSendRequest);
+    ADD_ORIGINAL(36, WinHttpSetCredentials);
+    ADD_ORIGINAL(37, WinHttpSetDefaultProxyConfiguration);
+    ADD_ORIGINAL(38, WinHttpSetOption);
+    ADD_ORIGINAL(39, WinHttpSetStatusCallback);
+    ADD_ORIGINAL(40, WinHttpSetTimeouts);
+    ADD_ORIGINAL(41, WinHttpTimeFromSystemTime);
+    ADD_ORIGINAL(42, WinHttpTimeToSystemTime);
+    ADD_ORIGINAL(43, WinHttpWebSocketClose);
+    ADD_ORIGINAL(44, WinHttpWebSocketCompleteUpgrade);
+    ADD_ORIGINAL(45, WinHttpWebSocketQueryCloseStatus);
+    ADD_ORIGINAL(46, WinHttpWebSocketReceive);
+    ADD_ORIGINAL(47, WinHttpWebSocketSend);
+    ADD_ORIGINAL(48, WinHttpWebSocketShutdown);
+    ADD_ORIGINAL(49, WinHttpWriteData);
 }
 
 PROXY(0, WinHttpAddRequestHeaders);

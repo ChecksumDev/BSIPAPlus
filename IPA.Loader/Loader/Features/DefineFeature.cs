@@ -11,16 +11,6 @@ namespace IPA.Loader.Features
     {
         public static bool NewFeature = true;
 
-        private class DataModel
-        {
-            [JsonProperty("type", Required = Required.Always)]
-            public string TypeName = "";
-            [JsonProperty("name", Required = Required.DisallowNull)]
-            public string? ActualName = null;
-
-            public string Name => ActualName ?? TypeName;
-        }
-
         private DataModel data = null!;
 
         protected override bool Initialize(PluginMetadata meta, JObject featureData)
@@ -57,7 +47,7 @@ namespace IPA.Loader.Features
             }
             catch (Exception e) when (e is FileNotFoundException or FileLoadException or BadImageFormatException)
             {
-                var filename = "";
+                string? filename = "";
 
                 switch (e)
                 {
@@ -91,13 +81,22 @@ namespace IPA.Loader.Features
                 }
 
                 Logger.Features.Error($"Feature with name {data.Name} already exists");
-                return;
             }
             catch (ArgumentException)
             {
                 Logger.Features.Error($"{type.FullName} not a subclass of {nameof(Feature)}");
-                return;
             }
+        }
+
+        private class DataModel
+        {
+            [JsonProperty("name", Required = Required.DisallowNull)]
+            public string? ActualName;
+
+            [JsonProperty("type", Required = Required.Always)]
+            public string TypeName = "";
+
+            public string Name => ActualName ?? TypeName;
         }
     }
 }

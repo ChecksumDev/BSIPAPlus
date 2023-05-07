@@ -6,8 +6,6 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using System.Reflection.Emit;
-using System.Text;
-using System.Threading.Tasks;
 using Boolean = IPA.Config.Data.Boolean;
 #if NET3
 using Net3_Proxy;
@@ -19,14 +17,15 @@ namespace IPA.Config.Stores
     internal static partial class GeneratedStoreImpl
     {
         // emit takes no args, leaves Value at top of stack
-        private static void EmitSerializeMember(ILGenerator il, SerializedMemberInfo member, LocalAllocator GetLocal, Action<ILGenerator> thisarg, Action<ILGenerator> parentobj)
+        private static void EmitSerializeMember(ILGenerator il, SerializedMemberInfo member, LocalAllocator GetLocal,
+            Action<ILGenerator> thisarg, Action<ILGenerator> parentobj)
         {
             EmitLoad(il, member, thisarg);
 
-            using var valueTypeLocal =
+            using AllocatedLocal valueTypeLocal =
                 member.IsNullable
-                ? GetLocal.Allocate(member.Type)
-                : default;
+                    ? GetLocal.Allocate(member.Type)
+                    : default;
 
             if (member.IsNullable)
             {
@@ -34,15 +33,18 @@ namespace IPA.Config.Stores
                 il.Emit(OpCodes.Ldloca, valueTypeLocal.Local);
             }
 
-            var endSerialize = il.DefineLabel();
+            Label endSerialize = il.DefineLabel();
 
             if (member.AllowNull)
             {
-                var passedNull = il.DefineLabel();
+                Label passedNull = il.DefineLabel();
 
                 il.Emit(OpCodes.Dup);
                 if (member.IsNullable)
+                {
                     il.Emit(OpCodes.Call, member.Nullable_HasValue.GetGetMethod());
+                }
+
                 il.Emit(OpCodes.Brtrue, passedNull);
 
                 il.Emit(OpCodes.Pop);
@@ -53,14 +55,16 @@ namespace IPA.Config.Stores
             }
 
             if (member.IsNullable)
+            {
                 il.Emit(OpCodes.Call, member.Nullable_Value.GetGetMethod());
+            }
 
-            var memberConversionType = member.ConversionType;
-            var targetType = GetExpectedValueTypeForType(memberConversionType);
+            Type? memberConversionType = member.ConversionType;
+            Type? targetType = GetExpectedValueTypeForType(memberConversionType);
             if (member.HasConverter)
             {
-                using var stlocal = GetLocal.Allocate(memberConversionType);
-                using var valLocal = GetLocal.Allocate(typeof(Value));
+                using AllocatedLocal stlocal = GetLocal.Allocate(memberConversionType);
+                using AllocatedLocal valLocal = GetLocal.Allocate(typeof(Value));
 
                 il.Emit(OpCodes.Stloc, stlocal);
                 il.BeginExceptionBlock();
@@ -69,18 +73,20 @@ namespace IPA.Config.Stores
 
                 if (member.IsGenericConverter)
                 {
-                    var toValueBase = member.ConverterBase.GetMethod(nameof(ValueConverter<int>.ToValue),
+                    MethodInfo? toValueBase = member.ConverterBase.GetMethod(nameof(ValueConverter<int>.ToValue),
                         new[] { member.ConverterTarget, typeof(object) });
-                    var toValue = member.Converter.GetMethods(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance)
+                    MethodInfo? toValue = member.Converter
+                        .GetMethods(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance)
                         .FirstOrDefault(m => m.GetBaseDefinition() == toValueBase) ?? toValueBase;
                     il.Emit(OpCodes.Ldarg_0);
                     il.Emit(OpCodes.Call, toValue);
                 }
                 else
                 {
-                    var toValueBase = typeof(IValueConverter).GetMethod(nameof(IValueConverter.ToValue),
+                    MethodInfo? toValueBase = typeof(IValueConverter).GetMethod(nameof(IValueConverter.ToValue),
                         new[] { typeof(object), typeof(object) });
-                    var toValue = member.Converter.GetMethods(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance)
+                    MethodInfo? toValue = member.Converter
+                        .GetMethods(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance)
                         .FirstOrDefault(m => m.GetBaseDefinition() == toValueBase) ?? toValueBase;
                     il.Emit(OpCodes.Box);
                     il.Emit(OpCodes.Ldarg_0);
@@ -96,29 +102,31 @@ namespace IPA.Config.Stores
                 il.Emit(OpCodes.Ldloc, valLocal);
             }
             else if (targetType == typeof(Text))
-            { // only happens when arg is a string or char
-                var TextCreate = typeof(Value).GetMethod(nameof(Value.Text));
+            {
+                // only happens when arg is a string or char
+                MethodInfo? TextCreate = typeof(Value).GetMethod(nameof(Value.Text));
                 if (member.Type == typeof(char))
                 {
-                    var strFromChar = typeof(char).GetMethod(nameof(char.ToString), new[] { typeof(char) });
+                    MethodInfo? strFromChar = typeof(char).GetMethod(nameof(char.ToString), new[] { typeof(char) });
                     il.Emit(OpCodes.Call, strFromChar);
                 }
+
                 il.Emit(OpCodes.Call, TextCreate);
             }
             else if (targetType == typeof(Boolean))
             {
-                var BoolCreate = typeof(Value).GetMethod(nameof(Value.Bool));
+                MethodInfo? BoolCreate = typeof(Value).GetMethod(nameof(Value.Bool));
                 il.Emit(OpCodes.Call, BoolCreate);
             }
             else if (targetType == typeof(Integer))
             {
-                var IntCreate = typeof(Value).GetMethod(nameof(Value.Integer));
+                MethodInfo? IntCreate = typeof(Value).GetMethod(nameof(Value.Integer));
                 EmitNumberConvertTo(il, IntCreate.GetParameters()[0].ParameterType, member.Type);
                 il.Emit(OpCodes.Call, IntCreate);
             }
             else if (targetType == typeof(FloatingPoint))
             {
-                var FloatCreate = typeof(Value).GetMethod(nameof(Value.Float));
+                MethodInfo? FloatCreate = typeof(Value).GetMethod(nameof(Value.Float));
                 EmitNumberConvertTo(il, FloatCreate.GetParameters()[0].ParameterType, member.Type);
                 il.Emit(OpCodes.Call, FloatCreate);
             }
@@ -135,14 +143,15 @@ namespace IPA.Config.Stores
                 if (!memberConversionType.IsValueType)
                 {
                     // if it is a reference type, we assume that its a generated type implementing IGeneratedStore
-                    var IGeneratedStore_Serialize = typeof(IGeneratedStore).GetMethod(nameof(IGeneratedStore.Serialize));
-                    var IGeneratedStoreT_CopyFrom = typeof(IGeneratedStore<>).MakeGenericType(member.Type)
+                    MethodInfo? IGeneratedStore_Serialize =
+                        typeof(IGeneratedStore).GetMethod(nameof(IGeneratedStore.Serialize));
+                    MethodInfo? IGeneratedStoreT_CopyFrom = typeof(IGeneratedStore<>).MakeGenericType(member.Type)
                         .GetMethod(nameof(IGeneratedStore<object>.CopyFrom));
 
                     if (!member.IsVirtual)
                     {
-                        var noCreate = il.DefineLabel();
-                        using var stlocal = GetLocal.Allocate(member.Type);
+                        Label noCreate = il.DefineLabel();
+                        using AllocatedLocal stlocal = GetLocal.Allocate(member.Type);
 
                         // first check to make sure that this is an IGeneratedStore, because we don't control assignments to it
                         il.Emit(OpCodes.Dup);
@@ -159,16 +168,19 @@ namespace IPA.Config.Stores
                         EmitStore(il, member, il => il.Emit(OpCodes.Ldloc, stlocal), thisarg);
                         il.MarkLabel(noCreate);
                     }
+
                     il.Emit(OpCodes.Callvirt, IGeneratedStore_Serialize);
                 }
                 else
-                { // generate serialization for value types
-                    using var valueLocal = GetLocal.Allocate(memberConversionType);
+                {
+                    // generate serialization for value types
+                    using AllocatedLocal valueLocal = GetLocal.Allocate(memberConversionType);
 
-                    var structure = ReadObjectMembers(memberConversionType);
+                    IEnumerable<SerializedMemberInfo>? structure = ReadObjectMembers(memberConversionType);
                     if (!structure.Any())
                     {
-                        Logger.Config.Warn($"Custom value type {memberConversionType.FullName} (when compiling serialization of" +
+                        Logger.Config.Warn(
+                            $"Custom value type {memberConversionType.FullName} (when compiling serialization of" +
                             $" {member.Name} on {member.Member.DeclaringType.FullName}) has no accessible members");
                         il.Emit(OpCodes.Pop);
                     }
@@ -177,25 +189,27 @@ namespace IPA.Config.Stores
                         il.Emit(OpCodes.Stloc, valueLocal);
                     }
 
-                    EmitSerializeStructure(il, structure, GetLocal, il => il.Emit(OpCodes.Ldloca, valueLocal), parentobj);
+                    EmitSerializeStructure(il, structure, GetLocal, il => il.Emit(OpCodes.Ldloca, valueLocal),
+                        parentobj);
                 }
             }
 
             il.MarkLabel(endSerialize);
         }
 
-        private static void EmitSerializeStructure(ILGenerator il, IEnumerable<SerializedMemberInfo> structure, LocalAllocator GetLocal, Action<ILGenerator> thisarg, Action<ILGenerator> parentobj)
+        private static void EmitSerializeStructure(ILGenerator il, IEnumerable<SerializedMemberInfo> structure,
+            LocalAllocator GetLocal, Action<ILGenerator> thisarg, Action<ILGenerator> parentobj)
         {
-            var MapCreate = typeof(Value).GetMethod(nameof(Value.Map));
-            var MapAdd = typeof(Map).GetMethod(nameof(Map.Add));
+            MethodInfo? MapCreate = typeof(Value).GetMethod(nameof(Value.Map));
+            MethodInfo? MapAdd = typeof(Map).GetMethod(nameof(Map.Add));
 
-            using var mapLocal = GetLocal.Allocate(typeof(Map));
-            using var valueLocal = GetLocal.Allocate(typeof(Value));
+            using AllocatedLocal mapLocal = GetLocal.Allocate(typeof(Map));
+            using AllocatedLocal valueLocal = GetLocal.Allocate(typeof(Value));
 
             il.Emit(OpCodes.Call, MapCreate);
             il.Emit(OpCodes.Stloc, mapLocal);
 
-            foreach (var mem in structure)
+            foreach (SerializedMemberInfo? mem in structure)
             {
                 EmitSerializeMember(il, mem, GetLocal, thisarg, parentobj);
                 il.Emit(OpCodes.Stloc, valueLocal);

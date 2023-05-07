@@ -6,8 +6,12 @@ namespace IPA
 {
     public class PatchContext
     {
+        // This is only created by us; and all are assigned
+#pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
+        private PatchContext() { }
+#pragma warning restore CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
         /// <summary>
-        /// Gets the filename of the executable.
+        ///     Gets the filename of the executable.
         /// </summary>
         public string Executable { get; private set; }
 
@@ -26,23 +30,19 @@ namespace IPA
         public string IPA { get; private set; }
         public string BackupPath { get; private set; }
 
-        // This is only created by us; and all are assigned
-#pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
-        private PatchContext() { }
-#pragma warning restore CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
-
         public static PatchContext Create(string exe)
         {
-            var context = new PatchContext
-            {
-                Executable = exe
-            };
+            PatchContext? context = new() { Executable = exe };
             context.ProjectRoot = new FileInfo(context.Executable).Directory?.FullName ?? throw new Exception();
-            context.IPARoot = Path.Combine(Path.GetDirectoryName(Assembly.GetEntryAssembly()!.Location) ?? throw new InvalidOperationException(), "IPA");
+            context.IPARoot =
+                Path.Combine(
+                    Path.GetDirectoryName(Assembly.GetEntryAssembly()!.Location) ??
+                    throw new InvalidOperationException(), "IPA");
             context.IPA = Assembly.GetExecutingAssembly().Location;
             context.DataPathSrc = Path.Combine(context.IPARoot, "Data");
             context.LibsPathSrc = Path.Combine(context.IPARoot, "Libs");
-            context.PluginsFolder = Path.Combine(context.ProjectRoot ?? throw new InvalidOperationException(), "Plugins");
+            context.PluginsFolder =
+                Path.Combine(context.ProjectRoot ?? throw new InvalidOperationException(), "Plugins");
             context.ProjectName = Path.GetFileNameWithoutExtension(context.Executable);
             context.DataPathDst = Path.Combine(context.ProjectRoot, context.ProjectName + "_Data");
             context.LibsPathDst = Path.Combine(context.ProjectRoot, "Libs");

@@ -14,28 +14,32 @@ namespace IPA.JsonConverters
         private static void Assert([DoesNotReturnIf(false)] bool condition)
         {
             if (!condition)
+            {
                 throw new InvalidOperationException();
+            }
         }
 
-        public override Dictionary<string, List<JObject>> ReadJson(JsonReader reader, Type objectType, Dictionary<string, List<JObject>> existingValue, bool hasExistingValue, JsonSerializer serializer)
+        public override Dictionary<string, List<JObject>> ReadJson(JsonReader reader, Type objectType,
+            Dictionary<string, List<JObject>> existingValue, bool hasExistingValue, JsonSerializer serializer)
         {
             if (reader.TokenType == JsonToken.StartArray)
             {
                 _ = serializer.Deserialize<string[]>(reader);
-                Logger.Features.Warn("Encountered old features used. They no longer do anything, please move to the new format.");
+                Logger.Features.Warn(
+                    "Encountered old features used. They no longer do anything, please move to the new format.");
                 return existingValue;
             }
 
-            var dict = new Dictionary<string, List<JObject>>();
+            Dictionary<string, List<JObject>> dict = new();
             Assert(reader.TokenType == JsonToken.StartObject && reader.Read());
 
             while (reader.TokenType == JsonToken.PropertyName)
             {
-                var name = (string)reader.Value;
+                string name = (string)reader.Value;
                 Assert(reader.Read());
 
-                var list = reader.TokenType == JsonToken.StartObject
-                    ? (new() { serializer.Deserialize<JObject>(reader) })
+                List<JObject> list = reader.TokenType == JsonToken.StartObject
+                    ? new List<JObject> { serializer.Deserialize<JObject>(reader) }
                     : serializer.Deserialize<List<JObject>>(reader);
 
                 dict.Add(name, list);
@@ -45,7 +49,8 @@ namespace IPA.JsonConverters
             return dict;
         }
 
-        public override void WriteJson(JsonWriter writer, Dictionary<string, List<JObject>> value, JsonSerializer serializer)
+        public override void WriteJson(JsonWriter writer, Dictionary<string, List<JObject>> value,
+            JsonSerializer serializer)
         {
             serializer.Serialize(writer, value);
         }

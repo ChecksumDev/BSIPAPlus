@@ -1,15 +1,13 @@
 ﻿#nullable enable
-using System;
-using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
-using System.IO;
-using System.Reflection;
-using System.Linq;
-using IPA.Logging;
-using IPA.Utilities;
-using Mono.Cecil;
 using IPA.AntiMalware;
 using IPA.Config;
+using IPA.Logging;
+using Mono.Cecil;
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Reflection;
 #if NET3
 using Net3_Proxy;
 using Directory = Net3_Proxy.Directory;
@@ -29,17 +27,23 @@ namespace IPA.Loader
             LibLoader.SetupAssemblyFilenames();
 
             if (name.Name == CurrentAssemblyName)
+            {
                 return AssemblyDefinition.ReadAssembly(CurrentAssemblyPath, parameters);
+            }
 
-            if (LibLoader.FilenameLocations.TryGetValue($"{name.Name}.dll", out var path))
+            if (LibLoader.FilenameLocations.TryGetValue($"{name.Name}.dll", out string? path))
             {
                 if (File.Exists(path))
+                {
                     return AssemblyDefinition.ReadAssembly(path, parameters);
+                }
             }
             else if (LibLoader.FilenameLocations.TryGetValue($"{name.Name}.{name.Version}.dll", out path))
             {
                 if (File.Exists(path))
+                {
                     return AssemblyDefinition.ReadAssembly(path, parameters);
+                }
             }
 
 
@@ -49,9 +53,9 @@ namespace IPA.Loader
 
     internal static class LibLoader
     {
+        internal static Dictionary<string, string> FilenameLocations = null!;
         internal static string LibraryPath => Path.Combine(Environment.CurrentDirectory, "Libs");
         internal static string NativeLibraryPath => Path.Combine(LibraryPath, "Native");
-        internal static Dictionary<string, string> FilenameLocations = null!;
 
         internal static void Configure()
         {
@@ -66,16 +70,22 @@ namespace IPA.Loader
             {
                 FilenameLocations = new Dictionary<string, string>();
 
-                foreach (var fn in TraverseTree(LibraryPath, s => s != NativeLibraryPath))
+                foreach (FileInfo? fn in TraverseTree(LibraryPath, s => s != NativeLibraryPath))
                 {
                     if (FilenameLocations.ContainsKey(fn.Name))
-                        Log(Logger.Level.Critical, $"Multiple instances of {fn.Name} exist in Libs! Ignoring {fn.FullName}");
-                    else FilenameLocations.Add(fn.Name, fn.FullName);
+                    {
+                        Log(Logger.Level.Critical,
+                            $"Multiple instances of {fn.Name} exist in Libs! Ignoring {fn.FullName}");
+                    }
+                    else
+                    {
+                        FilenameLocations.Add(fn.Name, fn.FullName);
+                    }
                 }
 
                 static void AddDir(string path)
                 {
-                    var pathEnvironmentVariable = Environment.GetEnvironmentVariable("Path");
+                    string? pathEnvironmentVariable = Environment.GetEnvironmentVariable("Path");
                     Environment.SetEnvironmentVariable("Path", path + Path.PathSeparator + pathEnvironmentVariable);
                 }
 
@@ -83,8 +93,10 @@ namespace IPA.Loader
                 {
                     AddDir(NativeLibraryPath);
                     _ = TraverseTree(NativeLibraryPath, dir =>
-                    { // this is a terrible hack for iterating directories
-                        AddDir(dir); return true;
+                    {
+                        // this is a terrible hack for iterating directories
+                        AddDir(dir);
+                        return true;
                     }).All(f => true); // force it to iterate all
                 }
 
@@ -98,7 +110,7 @@ namespace IPA.Loader
 
         public static Assembly? AssemblyLibLoader(object source, ResolveEventArgs e)
         {
-            var asmName = new AssemblyName(e.Name);
+            AssemblyName? asmName = new(e.Name);
             return LoadLibrary(asmName);
         }
 
@@ -108,15 +120,16 @@ namespace IPA.Loader
 
             SetupAssemblyFilenames();
 
-            var testFile = $"{asmName.Name}.dll";
+            string? testFile = $"{asmName.Name}.dll";
             Log(Logger.Level.Debug, $"Looking for file {asmName.Name}.dll");
 
-            if (FilenameLocations.TryGetValue(testFile, out var path))
+            if (FilenameLocations.TryGetValue(testFile, out string? path))
             {
                 Log(Logger.Level.Debug, $"Found file {testFile} as {path}");
                 return LoadSafe(path);
             }
-            else if (FilenameLocations.TryGetValue(testFile = $"{asmName.Name}.{asmName.Version}.dll", out path))
+
+            if (FilenameLocations.TryGetValue(testFile = $"{asmName.Name}.{asmName.Version}.dll", out path))
             {
                 Log(Logger.Level.Debug, $"Found file {testFile} as {path}");
                 Log(Logger.Level.Warning, $"File {testFile} should be renamed to just {asmName.Name}.dll");
@@ -138,15 +151,18 @@ namespace IPA.Loader
 
             if (AntiMalwareEngine.IsInitialized)
             {
-                var result = AntiMalwareEngine.Engine.ScanFile(new FileInfo(path));
+                ScanResult result = AntiMalwareEngine.Engine.ScanFile(new FileInfo(path));
                 if (result is ScanResult.Detected)
                 {
                     Log(Logger.Level.Error, $"Scan of '{path}' found malware; not loading");
                     return null;
                 }
-                if (!SelfConfig.AntiMalware_.RunPartialThreatCode_ && result is not ScanResult.KnownSafe and not ScanResult.NotDetected)
+
+                if (!SelfConfig.AntiMalware_.RunPartialThreatCode_ &&
+                    result is not ScanResult.KnownSafe and not ScanResult.NotDetected)
                 {
-                    Log(Logger.Level.Error, $"Scan of '{path}' found partial threat; not loading. To load this, enable AntiMalware.RunPartialThreatCode in the config.");
+                    Log(Logger.Level.Error,
+                        $"Scan of '{path}' found partial threat; not loading. To load this, enable AntiMalware.RunPartialThreatCode in the config.");
                     return null;
                 }
             }
@@ -155,7 +171,8 @@ namespace IPA.Loader
         }
 
         internal static void Log(Logger.Level lvl, string message)
-        { // multiple proxy methods to delay loading of assemblies until it's done
+        {
+            // multiple proxy methods to delay loading of assemblies until it's done
             if (Logger.LogCreated)
             {
                 AssemblyLibLoaderCallLogger(lvl, message);
@@ -163,34 +180,53 @@ namespace IPA.Loader
             else
             {
                 if (((byte)lvl & (byte)StandardLogger.PrintFilter) != 0)
+                {
                     Console.WriteLine($"[{lvl}] {message}");
-            }
-        }
-        internal static void Log(Logger.Level lvl, Exception message)
-        { // multiple proxy methods to delay loading of assemblies until it's done
-            if (Logger.LogCreated)
-            {
-                AssemblyLibLoaderCallLogger(lvl, message);
-            }
-            else
-            {
-                if (((byte)lvl & (byte)StandardLogger.PrintFilter) != 0)
-                    Console.WriteLine($"[{lvl}] {message}");
+                }
             }
         }
 
-        private static void AssemblyLibLoaderCallLogger(Logger.Level lvl, string message) => Logger.LibLoader.Log(lvl, message);
-        private static void AssemblyLibLoaderCallLogger(Logger.Level lvl, Exception message) => Logger.LibLoader.Log(lvl, message);
+        internal static void Log(Logger.Level lvl, Exception message)
+        {
+            // multiple proxy methods to delay loading of assemblies until it's done
+            if (Logger.LogCreated)
+            {
+                AssemblyLibLoaderCallLogger(lvl, message);
+            }
+            else
+            {
+                if (((byte)lvl & (byte)StandardLogger.PrintFilter) != 0)
+                {
+                    Console.WriteLine($"[{lvl}] {message}");
+                }
+            }
+        }
+
+        private static void AssemblyLibLoaderCallLogger(Logger.Level lvl, string message)
+        {
+            Logger.LibLoader.Log(lvl, message);
+        }
+
+        private static void AssemblyLibLoaderCallLogger(Logger.Level lvl, Exception message)
+        {
+            Logger.LibLoader.Log(lvl, message);
+        }
 
         // https://docs.microsoft.com/en-us/dotnet/csharp/programming-guide/file-system/how-to-iterate-through-a-directory-tree
         private static IEnumerable<FileInfo> TraverseTree(string root, Func<string, bool>? dirValidator = null)
         {
-            if (dirValidator == null) dirValidator = s => true;
+            if (dirValidator == null)
+            {
+                dirValidator = s => true;
+            }
 
-            var dirs = new Stack<string>(32);
+            Stack<string>? dirs = new(32);
 
             if (!Directory.Exists(root))
+            {
                 throw new ArgumentException("Directory does not exist", nameof(root));
+            }
+
             dirs.Push(root);
 
             while (dirs.Count > 0)
@@ -202,9 +238,13 @@ namespace IPA.Loader
                     subDirs = Directory.GetDirectories(currentDir);
                 }
                 catch (UnauthorizedAccessException)
-                { continue; }
+                {
+                    continue;
+                }
                 catch (DirectoryNotFoundException)
-                { continue; }
+                {
+                    continue;
+                }
 
                 string[] files;
                 try
@@ -212,12 +252,21 @@ namespace IPA.Loader
                     files = Directory.GetFiles(currentDir);
                 }
                 catch (UnauthorizedAccessException)
-                { continue; }
+                {
+                    continue;
+                }
                 catch (DirectoryNotFoundException)
-                { continue; }
-                
+                {
+                    continue;
+                }
+
                 foreach (string str in subDirs)
-                    if (dirValidator(str)) dirs.Push(str);
+                {
+                    if (dirValidator(str))
+                    {
+                        dirs.Push(str);
+                    }
+                }
 
                 foreach (string file in files)
                 {
@@ -227,7 +276,9 @@ namespace IPA.Loader
                         nextValue = new FileInfo(file);
                     }
                     catch (FileNotFoundException)
-                    { continue; }
+                    {
+                        continue;
+                    }
 
                     yield return nextValue;
                 }

@@ -14,7 +14,7 @@ using Path = Net3_Proxy.Path;
 namespace IPA.Logging.Printers
 {
     /// <summary>
-    /// A <see cref="LogPrinter"/> abstract class that provides the utilities to write to a GZip file.
+    ///     A <see cref="LogPrinter" /> abstract class that provides the utilities to write to a GZip file.
     /// </summary>
     public abstract class GZFilePrinter : LogPrinter, IDisposable
     {
@@ -36,7 +36,7 @@ namespace IPA.Logging.Printers
         private FileInfo? fileInfo;
 
         /// <summary>
-        /// The <see cref="StreamWriter"/> that writes to the GZip file.
+        ///     The <see cref="StreamWriter" /> that writes to the GZip file.
         /// </summary>
         /// <value>the writer to the underlying filestream</value>
         protected StreamWriter? FileWriter;
@@ -44,7 +44,7 @@ namespace IPA.Logging.Printers
         private FileStream? fstream;
 
         /// <summary>
-        /// Gets the <see cref="FileInfo"/> for the file to write to.
+        ///     Gets the <see cref="FileInfo" /> for the file to write to.
         /// </summary>
         /// <returns>the file to write to</returns>
         protected abstract FileInfo GetFileInfo();
@@ -57,17 +57,31 @@ namespace IPA.Logging.Printers
             try
             {
                 if (fileInfo == null)
-                { // first init
+                {
+                    // first init
                     fileInfo = GetFileInfo();
-                    var ext = fileInfo.Extension;
+                    string? ext = fileInfo.Extension;
 
-                    var symlink = new FileInfo(Path.Combine(fileInfo.DirectoryName ?? throw new InvalidOperationException(), string.Format(latestFormat, ext)));
-                    if (symlink.Exists) symlink.Delete();
-
-                    foreach (var file in fileInfo.Directory.EnumerateFiles("*.log", SearchOption.TopDirectoryOnly))
+                    FileInfo? symlink =
+                        new(Path.Combine(fileInfo.DirectoryName ?? throw new InvalidOperationException(),
+                            string.Format(latestFormat, ext)));
+                    if (symlink.Exists)
                     {
-                        if (file.Equals(fileInfo)) continue;
-                        if (file.Extension == ".gz") continue;
+                        symlink.Delete();
+                    }
+
+                    foreach (FileInfo? file in
+                             fileInfo.Directory.EnumerateFiles("*.log", SearchOption.TopDirectoryOnly))
+                    {
+                        if (file.Equals(fileInfo))
+                        {
+                            continue;
+                        }
+
+                        if (file.Extension == ".gz")
+                        {
+                            continue;
+                        }
 
                         CompressOldLog(file);
                     }
@@ -78,7 +92,7 @@ namespace IPA.Logging.Printers
                     {
                         if (!CreateHardLink(symlink.FullName, fileInfo.FullName, IntPtr.Zero))
                         {
-                            var error = Marshal.GetLastWin32Error();
+                            int error = Marshal.GetLastWin32Error();
                             Logger.Default.Error($"Hardlink creation failed ({error})");
                         }
                     }
@@ -103,12 +117,14 @@ namespace IPA.Logging.Printers
             {
                 Logger.Default.Debug($"Compressing log file {file}");
 
-                var newFile = new FileInfo(file.FullName + ".gz");
+                FileInfo? newFile = new(file.FullName + ".gz");
 
-                using (var istream = file.OpenRead())
-                using (var ostream = newFile.Create())
-                using (var gz = new GZipStream(ostream, CompressionMode.Compress, CompressionLevel.BestCompression, false))
+                using (FileStream? istream = file.OpenRead())
+                using (FileStream? ostream = newFile.Create())
+                using (GZipStream? gz = new(ostream, CompressionMode.Compress, CompressionLevel.BestCompression, false))
+                {
                     await istream.CopyToAsync(gz).ConfigureAwait(false);
+                }
 
                 file.Delete();
             }
@@ -120,7 +136,7 @@ namespace IPA.Logging.Printers
         }
 
         /// <summary>
-        /// Called at the start of any print session.
+        ///     Called at the start of any print session.
         /// </summary>
         public sealed override void StartPrint()
         {
@@ -131,7 +147,7 @@ namespace IPA.Logging.Printers
         }
 
         /// <summary>
-        /// Called at the end of any print session.
+        ///     Called at the end of any print session.
         /// </summary>
         public sealed override void EndPrint()
         {
@@ -151,7 +167,7 @@ namespace IPA.Logging.Printers
         }
 
         /// <summary>
-        /// Disposes the file printer.
+        ///     Disposes the file printer.
         /// </summary>
         /// <param name="disposing">does nothing</param>
         protected virtual void Dispose(bool disposing)

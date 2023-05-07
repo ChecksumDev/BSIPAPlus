@@ -3,35 +3,30 @@ using IPA.Logging;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using System;
-using System.Linq;
-using System.Collections.Specialized;
-using System.ComponentModel;
-using System.IO;
 using System.Collections.Generic;
+using System.IO;
+using System.Linq;
 using Boolean = IPA.Config.Data.Boolean;
-using System.Threading.Tasks;
 
 namespace IPA.Config.Providers
 {
     internal class JsonConfigProvider : IConfigProvider
     {
-        public static void RegisterConfig()
-        {
-            Config.Register<JsonConfigProvider>();
-        }
-
         public string Extension => "json";
 
         public Value Load(FileInfo file)
         {
-            if (!file.Exists) return Value.Null();
+            if (!file.Exists)
+            {
+                return Value.Null();
+            }
 
             try
             {
                 JToken jtok;
-                using (var sreader = new StreamReader(file.OpenRead()))
+                using (StreamReader sreader = new(file.OpenRead()))
                 {
-                    using var jreader = new JsonTextReader(sreader);
+                    using JsonTextReader jreader = new(sreader);
                     jtok = JToken.ReadFrom(jreader);
                 }
 
@@ -45,9 +40,39 @@ namespace IPA.Config.Providers
             }
         }
 
+        public void Store(Value value, FileInfo file)
+        {
+            if (!file.Directory.Exists)
+            {
+                file.Directory.Create();
+            }
+
+            try
+            {
+                JToken tok = VisitToToken(value);
+
+                using StreamWriter swriter = new(file.Open(FileMode.Create, FileAccess.Write));
+                using JsonTextWriter jwriter = new(swriter) { Formatting = Formatting.Indented };
+                tok.WriteTo(jwriter);
+            }
+            catch (Exception e)
+            {
+                Logger.Config.Error($"Error serializing value for {file.FullName}");
+                Logger.Config.Error(e);
+            }
+        }
+
+        public static void RegisterConfig()
+        {
+            Config.Register<JsonConfigProvider>();
+        }
+
         private Value VisitToValue(JToken tok)
         {
-            if (tok == null) return Value.Null();
+            if (tok == null)
+            {
+                return Value.Null();
+            }
 
             switch (tok.Type)
             {
@@ -68,43 +93,91 @@ namespace IPA.Config.Providers
                 case JTokenType.Property: // never used by Newtonsoft
                     Logger.Config.Warn("Found JTokenType.Property");
                     goto case JTokenType.Null;
-                case JTokenType.Null: 
+                case JTokenType.Null:
                     return Value.Null();
                 case JTokenType.Boolean:
-                    return Value.Bool(((tok as JValue).Value as bool?) ?? false);
+                    return Value.Bool((tok as JValue).Value as bool? ?? false);
                 case JTokenType.String:
-                    var val = (tok as JValue).Value;
-                    if (val is string s) return Value.Text(s);
-                    else if (val is char c) return Value.Text("" + c);
-                    else return Value.Text(string.Empty);
+                    object val = (tok as JValue).Value;
+                    if (val is string s)
+                    {
+                        return Value.Text(s);
+                    }
+
+                    if (val is char c)
+                    {
+                        return Value.Text("" + c);
+                    }
+
+                    return Value.Text(string.Empty);
                 case JTokenType.Integer:
                     val = (tok as JValue).Value;
-                    if (val is long l) return Value.Integer(l);
-                    else if (val is ulong u) return Value.Integer((long)u);
-                    else return Value.Integer(0);
+                    if (val is long l)
+                    {
+                        return Value.Integer(l);
+                    }
+
+                    if (val is ulong u)
+                    {
+                        return Value.Integer((long)u);
+                    }
+
+                    return Value.Integer(0);
                 case JTokenType.Float:
                     val = (tok as JValue).Value;
-                    if (val is decimal dec) return Value.Float(dec);
-                    else if (val is double dou) return Value.Float((decimal)dou);
-                    else if (val is float flo) return Value.Float((decimal)flo);
-                    else return Value.Float(0); // default to 0 if something breaks
+                    if (val is decimal dec)
+                    {
+                        return Value.Float(dec);
+                    }
+
+                    if (val is double dou)
+                    {
+                        return Value.Float((decimal)dou);
+                    }
+
+                    if (val is float flo)
+                    {
+                        return Value.Float((decimal)flo);
+                    }
+
+                    return Value.Float(0); // default to 0 if something breaks
                 case JTokenType.Date:
                     val = (tok as JValue).Value;
-                    if (val is DateTime dt) return Value.Text(dt.ToString());
-                    else if (val is DateTimeOffset dto) return Value.Text(dto.ToString());
-                    else return Value.Text("Unknown Date-type token");
+                    if (val is DateTime dt)
+                    {
+                        return Value.Text(dt.ToString());
+                    }
+
+                    if (val is DateTimeOffset dto)
+                    {
+                        return Value.Text(dto.ToString());
+                    }
+
+                    return Value.Text("Unknown Date-type token");
                 case JTokenType.TimeSpan:
                     val = (tok as JValue).Value;
-                    if (val is TimeSpan ts) return Value.Text(ts.ToString());
-                    else return Value.Text("Unknown TimeSpan-type token");
+                    if (val is TimeSpan ts)
+                    {
+                        return Value.Text(ts.ToString());
+                    }
+
+                    return Value.Text("Unknown TimeSpan-type token");
                 case JTokenType.Guid:
                     val = (tok as JValue).Value;
-                    if (val is Guid g) return Value.Text(g.ToString());
-                    else return Value.Text("Unknown Guid-type token");
+                    if (val is Guid g)
+                    {
+                        return Value.Text(g.ToString());
+                    }
+
+                    return Value.Text("Unknown Guid-type token");
                 case JTokenType.Uri:
                     val = (tok as JValue).Value;
-                    if (val is Uri ur) return Value.Text(ur.ToString());
-                    else return Value.Text("Unknown Uri-type token");
+                    if (val is Uri ur)
+                    {
+                        return Value.Text(ur.ToString());
+                    }
+
+                    return Value.Text("Unknown Uri-type token");
                 case JTokenType.Array:
                     return Value.From((tok as JArray).Select(VisitToValue));
                 case JTokenType.Object:
@@ -115,31 +188,8 @@ namespace IPA.Config.Providers
             }
         }
 
-        public void Store(Value value, FileInfo file)
+        private JToken VisitToToken(Value val)
         {
-            if (!file.Directory.Exists)
-                file.Directory.Create();
-
-            try
-            {
-                var tok = VisitToToken(value);
-
-                using var swriter = new StreamWriter(file.Open(FileMode.Create, FileAccess.Write));
-                using var jwriter = new JsonTextWriter(swriter)
-                {
-                    Formatting = Formatting.Indented
-                };
-                tok.WriteTo(jwriter);
-            }
-            catch (Exception e)
-            {
-                Logger.Config.Error($"Error serializing value for {file.FullName}");
-                Logger.Config.Error(e);
-            }
-        }
-
-        private JToken VisitToToken(Value val) 
-        { 
             switch (val)
             {
                 case Text t:
@@ -151,12 +201,20 @@ namespace IPA.Config.Providers
                 case FloatingPoint f:
                     return new JValue(f.Value);
                 case List l:
-                    var jarr = new JArray();
-                    foreach (var tok in l.Select(VisitToToken)) jarr.Add(tok);
+                    JArray jarr = new();
+                    foreach (JToken tok in l.Select(VisitToToken))
+                    {
+                        jarr.Add(tok);
+                    }
+
                     return jarr;
                 case Map m:
-                    var jobj = new JObject();
-                    foreach (var kvp in m) jobj.Add(kvp.Key, VisitToToken(kvp.Value));
+                    JObject jobj = new();
+                    foreach (KeyValuePair<string, Value> kvp in m)
+                    {
+                        jobj.Add(kvp.Key, VisitToToken(kvp.Value));
+                    }
+
                     return jobj;
                 case null:
                     return JValue.CreateNull();

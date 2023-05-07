@@ -12,9 +12,9 @@
   "icon": "IPA.icon_white.png",
   "features": {
     "IPA.DefineFeature": {
-        "type": "IPA.Loader.Features.ConfigProviderFeature",
-        "name": "IPA.ConfigProvider"
-      }
+      "type": "IPA.Loader.Features.ConfigProviderFeature",
+      "name": "IPA.ConfigProvider"
+    }
   },
   "links": {
     "project-home": "https://checksumdev.github.io/BSIPAPlus/index.html",
@@ -30,5 +30,5 @@
     "Libs/Mono.Cecil.dll",
     "Libs/SemVer.dll",
     "Libs/Hive.Versioning.dll"
-  ],
+  ]
 }

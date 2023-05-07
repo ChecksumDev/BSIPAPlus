@@ -1,98 +1,127 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
+﻿using System.Collections.Generic;
 
 namespace System.Runtime.CompilerServices
 {
     public sealed class ConditionalWeakTable<TKey, TValue> where TKey : class where TValue : class
     {
-        private readonly Dictionary<WeakReference<TKey>, TValue> items = new Dictionary<WeakReference<TKey>, TValue>();
+        public delegate TValue CreateValueCallback(TKey key);
+
         private readonly object _lock = new object();
+        private readonly Dictionary<WeakReference<TKey>, TValue> items = new Dictionary<WeakReference<TKey>, TValue>();
 
-        private sealed class KeyComparer : IEqualityComparer<WeakReference<TKey>>
+        public ConditionalWeakTable()
         {
-            public bool Equals(WeakReference<TKey> x, WeakReference<TKey> y)
-                => x.TryGetTarget(out var keyX) && y.TryGetTarget(out var keyY) && ReferenceEquals(keyX, keyY);
-
-            public int GetHashCode(WeakReference<TKey> obj)
-                => obj.TryGetTarget(out var key) ? key.GetHashCode() : 0;
+            GCTracker.OnGC += OnGC;
         }
 
         private static WeakReference<TKey> WeakRef(TKey key)
-            => new WeakReference<TKey>(key);
-
-        private sealed class GCTracker
         {
-            public static event Action OnGC;
-            private static readonly WeakReference<GCTracker> tracker = new WeakReference<GCTracker>(new GCTracker());
-            ~GCTracker()
-            {
-                OnGC?.Invoke();
-                if (!AppDomain.CurrentDomain.IsFinalizingForUnload() && !Environment.HasShutdownStarted)
-                    tracker.SetTarget(new GCTracker());
-            }
+            return new WeakReference<TKey>(key);
         }
 
         public void Add(TKey key, TValue value)
         {
             if (key == null)
+            {
                 throw new ArgumentException("Null key", nameof(key));
+            }
+
             lock (_lock)
+            {
                 items.Add(WeakRef(key), value);
+            }
         }
 
         public bool TryGetValue(TKey key, out TValue value)
         {
             if (key == null)
+            {
                 throw new ArgumentException("Null key", nameof(key));
+            }
 
             value = null;
             lock (_lock)
+            {
                 return items.TryGetValue(WeakRef(key), out value);
+            }
         }
-
-        public delegate TValue CreateValueCallback(TKey key);
 
         public TValue GetValue(TKey key, CreateValueCallback createValueCallback)
         {
             if (createValueCallback == null)
+            {
                 throw new ArgumentException("Null create delegate", nameof(createValueCallback));
+            }
 
             lock (_lock)
             {
-                if (TryGetValue(key, out var value))
-                    return value;
-                else
+                if (TryGetValue(key, out TValue value))
                 {
-                    value = createValueCallback(key);
-                    Add(key, value);
                     return value;
                 }
+
+                value = createValueCallback(key);
+                Add(key, value);
+                return value;
             }
         }
 
         public TValue GetOrCreateValue(TKey key)
-            => GetValue(key, k => Activator.CreateInstance<TValue>());
+        {
+            return GetValue(key, k => Activator.CreateInstance<TValue>());
+        }
 
         public bool Remove(TKey key)
         {
             if (key == null)
+            {
                 throw new ArgumentException("Null key", nameof(key));
+            }
 
             return items.Remove(WeakRef(key));
         }
 
-        public ConditionalWeakTable()
-            => GCTracker.OnGC += OnGC;
         ~ConditionalWeakTable()
-            => GCTracker.OnGC -= OnGC;
+        {
+            GCTracker.OnGC -= OnGC;
+        }
 
         private void OnGC()
         {
             // on each GC, we want to clear the entire set of empty keys
-            var nullWeakRef = WeakRef(null);
-            while (items.Remove(nullWeakRef)) ; // just loop
+            WeakReference<TKey> nullWeakRef = WeakRef(null);
+            while (items.Remove(nullWeakRef))
+            {
+                ; // just loop
+            }
+        }
+
+        private sealed class KeyComparer : IEqualityComparer<WeakReference<TKey>>
+        {
+            public bool Equals(WeakReference<TKey> x, WeakReference<TKey> y)
+            {
+                return x.TryGetTarget(out TKey keyX) && y.TryGetTarget(out TKey keyY) && ReferenceEquals(keyX, keyY);
+            }
+
+            public int GetHashCode(WeakReference<TKey> obj)
+            {
+                return obj.TryGetTarget(out TKey key) ? key.GetHashCode() : 0;
+            }
+        }
+
+        private sealed class GCTracker
+        {
+            private static readonly WeakReference<GCTracker> tracker = new WeakReference<GCTracker>(new GCTracker());
+            public static event Action OnGC;
+
+            ~GCTracker()
+            {
+                OnGC?.Invoke();
+                if (!AppDomain.CurrentDomain.IsFinalizingForUnload() && !Environment.HasShutdownStarted)
+                {
+                    tracker.SetTarget(new GCTracker());
+                }
+            }
         }
     }
 }

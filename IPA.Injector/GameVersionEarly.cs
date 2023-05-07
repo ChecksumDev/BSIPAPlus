@@ -16,51 +16,76 @@ namespace IPA.Injector
 {
     internal static class GameVersionEarly
     {
-        internal static string ResolveDataPath(string installDir) =>
-            Directory.EnumerateDirectories(installDir, "*_Data").First();
+        internal static readonly char[] IllegalCharacters =
+        {
+            '<', '>', ':', '/', '\\', '|', '?', '*', '"', '\u0000', '\u0001', '\u0002', '\u0003', '\u0004',
+            '\u0005', '\u0006', '\u0007', '\u0008', '\u0009', '\u000a', '\u000b', '\u000c', '\u000d', '\u000e',
+            '\u000d', '\u000f', '\u0010', '\u0011', '\u0012', '\u0013', '\u0014', '\u0015', '\u0016', '\u0017',
+            '\u0018', '\u0019', '\u001a', '\u001b', '\u001c', '\u001d', '\u001f'
+        };
 
-        internal static string GlobalGameManagers(string installDir) =>
-            Path.Combine(ResolveDataPath(installDir), "globalgamemanagers");
+        internal static string ResolveDataPath(string installDir)
+        {
+            return Directory.EnumerateDirectories(installDir, "*_Data").First();
+        }
+
+        internal static string GlobalGameManagers(string installDir)
+        {
+            return Path.Combine(ResolveDataPath(installDir), "globalgamemanagers");
+        }
 
         internal static string GetGameVersion()
         {
-            var mgr = GlobalGameManagers(UnityGame.InstallPath);
+            string? mgr = GlobalGameManagers(UnityGame.InstallPath);
 
-            using (var stream = File.OpenRead(mgr))
-            using (var reader = new BinaryReader(stream, Encoding.UTF8))
+            using (FileStream? stream = File.OpenRead(mgr))
+            using (BinaryReader? reader = new(stream, Encoding.UTF8))
             {
                 const string key = "public.app-category.games";
                 int pos = 0;
 
                 while (stream.Position < stream.Length && pos < key.Length)
                 {
-                    if (reader.ReadByte() == key[pos]) pos++;
-                    else pos = 0;
+                    if (reader.ReadByte() == key[pos])
+                    {
+                        pos++;
+                    }
+                    else
+                    {
+                        pos = 0;
+                    }
                 }
 
                 if (stream.Position == stream.Length) // we went through the entire stream without finding the key
+                {
                     throw new KeyNotFoundException("Could not find key '" + key + "' in " + mgr);
+                }
 
                 while (stream.Position < stream.Length)
                 {
-                    var current = (char)reader.ReadByte();
+                    char current = (char)reader.ReadByte();
                     if (char.IsDigit(current))
+                    {
                         break;
+                    }
                 }
 
-                var rewind = -sizeof(int) - sizeof(byte);
+                int rewind = -sizeof(int) - sizeof(byte);
                 _ = stream.Seek(rewind, SeekOrigin.Current); // rewind to the string length
 
-                var strlen = reader.ReadInt32();
-                var strbytes = reader.ReadBytes(strlen);
+                int strlen = reader.ReadInt32();
+                byte[]? strbytes = reader.ReadBytes(strlen);
 
                 return Encoding.UTF8.GetString(strbytes);
             }
         }
 
-        internal static AlmostVersion SafeParseVersion() => new(GetGameVersion());
+        internal static AlmostVersion SafeParseVersion()
+        {
+            return new AlmostVersion(GetGameVersion());
+        }
 
-        private static void _Load() 
+        private static void _Load()
         {
             UnityGame.SetEarlyGameVersion(SafeParseVersion());
             UnityGame.CheckGameVersionBoundary();
@@ -73,14 +98,5 @@ namespace IPA.Injector
 
             _Load();
         }
-
-        internal static readonly char[] IllegalCharacters = new char[]
-            {
-                '<', '>', ':', '/', '\\', '|', '?', '*', '"',
-                '\u0000', '\u0001', '\u0002', '\u0003', '\u0004', '\u0005', '\u0006', '\u0007',
-                '\u0008', '\u0009', '\u000a', '\u000b', '\u000c', '\u000d', '\u000e', '\u000d',
-                '\u000f', '\u0010', '\u0011', '\u0012', '\u0013', '\u0014', '\u0015', '\u0016',
-                '\u0017', '\u0018', '\u0019', '\u001a', '\u001b', '\u001c', '\u001d', '\u001f',
-            };
     }
 }

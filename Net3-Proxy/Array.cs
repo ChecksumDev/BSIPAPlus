@@ -1,19 +1,17 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using OgArray = System.Array;
+﻿using OgArray = System.Array;
 
 namespace Net3_Proxy
 {
     public static class Array
     {
+        public static T[] Empty<T>()
+        {
+            return EmptyArray<T>.Value;
+        }
+
         private static class EmptyArray<T>
         {
             public static readonly T[] Value = new T[0];
         }
-
-        public static T[] Empty<T>() => EmptyArray<T>.Value;
-
     }
 }

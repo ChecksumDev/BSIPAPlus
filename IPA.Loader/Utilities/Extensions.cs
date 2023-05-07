@@ -7,31 +7,35 @@ using Path = Net3_Proxy.Path;
 namespace IPA.Utilities
 {
     /// <summary>
-    /// A class providing various extension methods.
+    ///     A class providing various extension methods.
     /// </summary>
     public static class Extensions
     {
         /// <summary>
-        /// Gets the default value for a given <see cref="Type"/>.
+        ///     Gets the default value for a given <see cref="Type" />.
         /// </summary>
-        /// <param name="type">the <see cref="Type"/> to get the default value for</param>
-        /// <returns>the default value of <paramref name="type"/></returns>
+        /// <param name="type">the <see cref="Type" /> to get the default value for</param>
+        /// <returns>the default value of <paramref name="type" /></returns>
         public static object GetDefault(this Type type)
         {
             return type.IsValueType ? Activator.CreateInstance(type) : null;
         }
 
         /// <summary>
-        /// Unwraps a <see cref="Nullable{T}"/> where T is <see cref="bool"/> such that if the value is null, it gives <see langword="false"/>.
+        ///     Unwraps a <see cref="Nullable{T}" /> where T is <see cref="bool" /> such that if the value is null, it gives
+        ///     <see langword="false" />.
         /// </summary>
         /// <param name="self">the bool? to unwrap</param>
-        /// <returns>the unwrapped value, or <see langword="false"/> if it was <see langword="null"/></returns>
-        public static bool Unwrap(this bool? self) => self != null && self.Value;
+        /// <returns>the unwrapped value, or <see langword="false" /> if it was <see langword="null" /></returns>
+        public static bool Unwrap(this bool? self)
+        {
+            return self != null && self.Value;
+        }
 
         /// <summary>
-        /// Returns true if <paramref name="path"/> starts with the path <paramref name="baseDirPath"/>.
-        /// The comparison is case-insensitive, handles / and \ slashes as folder separators and
-        /// only matches if the base dir folder name is matched exactly ("c:\foobar\file.txt" is not a sub path of "c:\foo").
+        ///     Returns true if <paramref name="path" /> starts with the path <paramref name="baseDirPath" />.
+        ///     The comparison is case-insensitive, handles / and \ slashes as folder separators and
+        ///     only matches if the base dir folder name is matched exactly ("c:\foobar\file.txt" is not a sub path of "c:\foo").
         /// </summary>
         public static bool IsSubPathOf(this string path, string baseDirPath)
         {
@@ -45,14 +49,17 @@ namespace IPA.Utilities
         }
 
         /// <summary>
-        /// Returns <paramref name="str"/> with the minimal concatenation of <paramref name="ending"/> (starting from end) that
-        /// results in satisfying .EndsWith(ending).
+        ///     Returns <paramref name="str" /> with the minimal concatenation of <paramref name="ending" /> (starting from end)
+        ///     that
+        ///     results in satisfying .EndsWith(ending).
         /// </summary>
         /// <example>"hel".WithEnding("llo") returns "hello", which is the result of "hel" + "lo".</example>
         public static string WithEnding(this string str, string ending)
         {
             if (str == null)
+            {
                 return ending;
+            }
 
             string result = str;
 
@@ -63,7 +70,9 @@ namespace IPA.Utilities
             {
                 string tmp = result + ending.Right(i);
                 if (tmp.EndsWith(ending))
+                {
                     return tmp;
+                }
             }
 
             return result;
@@ -79,12 +88,13 @@ namespace IPA.Utilities
             {
                 throw new ArgumentNullException("value");
             }
+
             if (length < 0)
             {
                 throw new ArgumentOutOfRangeException("length", length, "Length is less than zero");
             }
 
-            return (length < value.Length) ? value.Substring(value.Length - length) : value;
+            return length < value.Length ? value.Substring(value.Length - length) : value;
         }
     }
 }

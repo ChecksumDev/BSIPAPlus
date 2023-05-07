@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 
@@ -20,37 +21,44 @@ namespace IPA.Patcher
         {
             return FindLatestBackup(context) != null;
         }
-        
+
         public static bool Restore(PatchContext context)
         {
-            var backup = FindLatestBackup(context);
-            if(backup != null)
+            BackupUnit? backup = FindLatestBackup(context);
+            if (backup != null)
             {
                 backup.Restore();
                 backup.Delete();
                 DeleteEmptyDirs(context.ProjectRoot);
                 return true;
             }
+
             return false;
         }
 
         public static void DeleteEmptyDirs(string dir)
         {
             if (string.IsNullOrEmpty(dir))
+            {
                 throw new ArgumentException(
                     "Starting directory is a null reference or an empty string",
                     nameof(dir));
+            }
 
             try
             {
-                foreach (var d in Directory.EnumerateDirectories(dir))
+                foreach (string? d in Directory.EnumerateDirectories(dir))
                 {
                     DeleteEmptyDirs(d);
                 }
 
-                var entries = Directory.EnumerateFileSystemEntries(dir);
+                IEnumerable<string>? entries = Directory.EnumerateFileSystemEntries(dir);
 
-                if (entries.Any()) return;
+                if (entries.Any())
+                {
+                    return;
+                }
+
                 try
                 {
                     Directory.Delete(dir);
@@ -60,6 +68,5 @@ namespace IPA.Patcher
             }
             catch (UnauthorizedAccessException) { }
         }
-
     }
 }

@@ -1,10 +1,12 @@
 ﻿using IPA.Config;
+using IPA.Config.Stores;
 using IPA.Loader.Composite;
 using IPA.Utilities;
 using IPA.Utilities.Async;
 using System.Diagnostics.CodeAnalysis;
 using UnityEngine;
 using UnityEngine.SceneManagement;
+
 // ReSharper disable UnusedMember.Local
 
 namespace IPA.Loader
@@ -12,16 +14,11 @@ namespace IPA.Loader
     [SuppressMessage("ReSharper", "ClassNeverInstantiated.Global")]
     internal class PluginComponent : MonoBehaviour
     {
+        public static PluginComponent Instance;
+        private static bool initialized;
         private CompositeBSPlugin bsPlugins;
         private CompositeIPAPlugin ipaPlugins;
         private bool quitting;
-        public static PluginComponent Instance;
-        private static bool initialized = false;
-
-        internal static PluginComponent Create()
-        {
-            return Instance = new GameObject("IPA_PluginManager").AddComponent<PluginComponent>();
-        }
 
         internal void Awake()
         {
@@ -52,14 +49,16 @@ namespace IPA.Loader
                 SceneManager.sceneLoaded += OnSceneLoaded;
                 SceneManager.sceneUnloaded += OnSceneUnloaded;
 
-                var unitySched = UnityMainThreadTaskScheduler.Default as UnityMainThreadTaskScheduler;
+                UnityMainThreadTaskScheduler unitySched = UnityMainThreadTaskScheduler.Default;
                 if (!unitySched.IsRunning)
+                {
                     StartCoroutine(unitySched.Coroutine());
+                }
 
                 initialized = true;
 
 #if DEBUG
-                Config.Stores.GeneratedStoreImpl.DebugSaveAssembly("GeneratedAssembly.dll");
+                GeneratedStoreImpl.DebugSaveAssembly("GeneratedAssembly.dll");
 #endif
             }
         }
@@ -69,21 +68,23 @@ namespace IPA.Loader
             bsPlugins.OnUpdate();
             ipaPlugins.OnUpdate();
 
-            var unitySched = UnityMainThreadTaskScheduler.Default as UnityMainThreadTaskScheduler;
+            UnityMainThreadTaskScheduler unitySched = UnityMainThreadTaskScheduler.Default;
             if (!unitySched.IsRunning)
+            {
                 StartCoroutine(unitySched.Coroutine());
-        }
-
-        internal void LateUpdate()
-        {
-            bsPlugins.OnLateUpdate();
-            ipaPlugins.OnLateUpdate();
+            }
         }
 
         internal void FixedUpdate()
         {
             bsPlugins.OnFixedUpdate();
             ipaPlugins.OnFixedUpdate();
+        }
+
+        internal void LateUpdate()
+        {
+            bsPlugins.OnLateUpdate();
+            ipaPlugins.OnLateUpdate();
         }
 
         internal void OnDestroy()
@@ -99,7 +100,7 @@ namespace IPA.Loader
             SceneManager.activeSceneChanged -= OnActiveSceneChanged;
             SceneManager.sceneLoaded -= OnSceneLoaded;
             SceneManager.sceneUnloaded -= OnSceneUnloaded;
-            
+
             bsPlugins.OnApplicationQuit();
             ipaPlugins.OnApplicationQuit();
 
@@ -113,6 +114,11 @@ namespace IPA.Loader
             ipaPlugins.OnLevelWasLoaded(level);
         }
 
+        internal static PluginComponent Create()
+        {
+            return Instance = new GameObject("IPA_PluginManager").AddComponent<PluginComponent>();
+        }
+
         internal void OnLevelWasInitialized(int level)
         {
             ipaPlugins.OnLevelWasInitialized(level);
@@ -122,14 +128,15 @@ namespace IPA.Loader
         {
             bsPlugins.OnSceneLoaded(scene, sceneMode);
         }
-        
-        private void OnSceneUnloaded(Scene scene) {
+
+        private void OnSceneUnloaded(Scene scene)
+        {
             bsPlugins.OnSceneUnloaded(scene);
         }
 
-        private void OnActiveSceneChanged(Scene prevScene, Scene nextScene) {
+        private void OnActiveSceneChanged(Scene prevScene, Scene nextScene)
+        {
             bsPlugins.OnActiveSceneChanged(prevScene, nextScene);
         }
-
     }
 }
