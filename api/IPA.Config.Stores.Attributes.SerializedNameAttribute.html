@@ -243,29 +243,29 @@
   <h6><strong>Assembly</strong>: IPA.Loader.dll</h6>
   <h5 id="IPA_Config_Stores_Attributes_SerializedNameAttribute_syntax">Syntax</h5>
   <div class="codewrapper">
-    <pre><code class="lang-csharp hljs">[AttributeUsage(AttributeTargets.Property | AttributeTargets.Field)]
+    <pre><code class="lang-csharp hljs">[AttributeUsage(AttributeTargets.Property | AttributeTargets.Field, AllowMultiple = false, Inherited = true)]
 public sealed class SerializedNameAttribute : Attribute, _Attribute</code></pre>
   </div>
   <h5 id="IPA_Config_Stores_Attributes_SerializedNameAttribute_examples"><strong>Examples</strong></h5>
   <p>
-    When serializing the following object, we might get the JSON that follows.
+When serializing the following object, we might get the JSON that follows.
 <pre><code>public class PluginConfig
 {
-public virtual bool BooleanField { get; set; } = true;
+    public virtual bool BooleanField { get; set; } = true;
 }</code></pre>
 <pre><code>{
-&quot;BooleanField&quot;: true
+    &quot;BooleanField&quot;: true
 }</code></pre>
 </p>
 <p>
-    However, if we were to add a <a class="xref" href="IPA.Config.Stores.Attributes.SerializedNameAttribute.html">SerializedNameAttribute</a> to that field, we would get the following.
+However, if we were to add a <a class="xref" href="IPA.Config.Stores.Attributes.SerializedNameAttribute.html">SerializedNameAttribute</a> to that field, we would get the following.
 <pre><code>public class PluginConfig
 {
-[SerializedName(&quot;bool&quot;)]
-public virtual bool BooleanField { get; set; } = true;
+    [SerializedName(&quot;bool&quot;)]
+    public virtual bool BooleanField { get; set; } = true;
 }</code></pre>
 <pre><code>{
-&quot;bool&quot;: true
+    &quot;bool&quot;: true
 }</code></pre>
 </p>
 
@@ -276,7 +276,7 @@ public virtual bool BooleanField { get; set; } = true;
     <a href="https://github.com/ChecksumDev/BSIPAPlus/new/master/docs/override/new?filename=IPA_Config_Stores_Attributes_SerializedNameAttribute__ctor_System_String_.md&amp;value=---%0Auid%3A%20IPA.Config.Stores.Attributes.SerializedNameAttribute.%23ctor(System.String)%0Asummary%3A%20'*You%20can%20override%20summary%20for%20the%20API%20here%20using%20*MARKDOWN*%20syntax'%0A---%0A%0A*Please%20type%20below%20more%20information%20about%20this%20API%3A*%0A%0A">Improve this Doc</a>
   </span>
   <span class="small pull-right mobile-hide">
-    <a href="https://github.com/ChecksumDev/BSIPAPlus/blob/eaa12e09a465b292326e32151b24d5dff0f1a7b1/IPA.Loader/Config/Stores/Attributes.cs/#L167">View Source</a>
+    <a href="https://github.com/ChecksumDev/BSIPAPlus/blob/ef2015c11256c0ac35837e459fcdd9c71e632f5f/IPA.Loader/Config/Stores/Attributes.cs/#L143">View Source</a>
   </span>
   <a id="IPA_Config_Stores_Attributes_SerializedNameAttribute__ctor_" data-uid="IPA.Config.Stores.Attributes.SerializedNameAttribute.#ctor*"></a>
   <h4 id="IPA_Config_Stores_Attributes_SerializedNameAttribute__ctor_System_String_" data-uid="IPA.Config.Stores.Attributes.SerializedNameAttribute.#ctor(System.String)">SerializedNameAttribute(String)</h4>
@@ -312,7 +312,7 @@ public virtual bool BooleanField { get; set; } = true;
     <a href="https://github.com/ChecksumDev/BSIPAPlus/new/master/docs/override/new?filename=IPA_Config_Stores_Attributes_SerializedNameAttribute_Name.md&amp;value=---%0Auid%3A%20IPA.Config.Stores.Attributes.SerializedNameAttribute.Name%0Asummary%3A%20'*You%20can%20override%20summary%20for%20the%20API%20here%20using%20*MARKDOWN*%20syntax'%0A---%0A%0A*Please%20type%20below%20more%20information%20about%20this%20API%3A*%0A%0A">Improve this Doc</a>
   </span>
   <span class="small pull-right mobile-hide">
-    <a href="https://github.com/ChecksumDev/BSIPAPlus/blob/eaa12e09a465b292326e32151b24d5dff0f1a7b1/IPA.Loader/Config/Stores/Attributes.cs/#L175">View Source</a>
+    <a href="https://github.com/ChecksumDev/BSIPAPlus/blob/ef2015c11256c0ac35837e459fcdd9c71e632f5f/IPA.Loader/Config/Stores/Attributes.cs/#L137">View Source</a>
   </span>
   <a id="IPA_Config_Stores_Attributes_SerializedNameAttribute_Name_" data-uid="IPA.Config.Stores.Attributes.SerializedNameAttribute.Name*"></a>
   <h4 id="IPA_Config_Stores_Attributes_SerializedNameAttribute_Name" data-uid="IPA.Config.Stores.Attributes.SerializedNameAttribute.Name">Name</h4>
@@ -369,7 +369,7 @@ public virtual bool BooleanField { get; set; } = true;
                     <a href="https://github.com/ChecksumDev/BSIPAPlus/new/master/docs/override/new?filename=IPA_Config_Stores_Attributes_SerializedNameAttribute.md&amp;value=---%0Auid%3A%20IPA.Config.Stores.Attributes.SerializedNameAttribute%0Asummary%3A%20'*You%20can%20override%20summary%20for%20the%20API%20here%20using%20*MARKDOWN*%20syntax'%0A---%0A%0A*Please%20type%20below%20more%20information%20about%20this%20API%3A*%0A%0A" class="contribution-link">Improve this Doc</a>
                   </li>
                   <li>
-                    <a href="https://github.com/ChecksumDev/BSIPAPlus/blob/eaa12e09a465b292326e32151b24d5dff0f1a7b1/IPA.Loader/Config/Stores/Attributes.cs/#L160" class="contribution-link">View Source</a>
+                    <a href="https://github.com/ChecksumDev/BSIPAPlus/blob/ef2015c11256c0ac35837e459fcdd9c71e632f5f/IPA.Loader/Config/Stores/Attributes.cs/#L131" class="contribution-link">View Source</a>
                   </li>
                 </ul>
               </div>
