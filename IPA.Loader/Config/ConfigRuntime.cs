@@ -224,13 +224,9 @@ namespace IPA.Config
                     int index = -1;
                     try
                     {
-                        var waitHandles = new WaitHandle[configArr.Length + 1];
-                        for (int i = 0; i < configArr.Length; i++)
-                        {
-                            waitHandles[i] = configArr[i].Store.SyncObject;
-                        }
-                        waitHandles[configArr.Length] = configsChangedWatcher;
-
+                        var waitHandles = configArr.Select(c => c.Store.SyncObject)
+                                                 .Prepend(configsChangedWatcher)
+                                                 .ToArray();
                         index = WaitHandle.WaitAny(waitHandles);
                     }
                     catch (ThreadAbortException)
@@ -244,20 +240,13 @@ namespace IPA.Config
                         Thread.Sleep(TimeSpan.FromSeconds(1));
                     }
 
-                    if (index < configArr.Length && index >= 0)
-                    {
-                        // a config's store changed
-                        Save(configArr[index]);
+                    if (index <= 0)
+                    { // we got a signal that the configs collection changed, loop around, or errored
+                        continue;
                     }
-                    else if (index == configArr.Length)
-                    {
-                        // configs changed
-                    }
-                    else
-                    {
-                        // something went wrong
-                        break;
-                    }
+
+                    // otherwise, we have a thing that changed in a store
+                    Save(configArr[index - 1]);
                 }
             }
             catch (ThreadAbortException)
